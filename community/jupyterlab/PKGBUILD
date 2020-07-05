@@ -1,0 +1,37 @@
+# Maintainer: Antonio Rojas <arojas@archlinux.org>
+
+# ALARM: Kevin Mihelich <kevin@archlinuxarm.org>
+#  - export --max-old-space-size option to fix 32-bit FTBFS
+
+pkgname=jupyterlab
+_pipname=jupyterlab
+pkgver=2.1.5
+pkgrel=1
+pkgdesc="JupyterLab computational environment"
+arch=(any)
+url="https://github.com/jupyterlab/jupyterlab"
+license=(custom)
+makedepends=(python-setuptools)
+depends=(jupyterlab_server nodejs)
+optdepends=('npm: to install extensions')
+source=(https://pypi.io/packages/source/${_pipname:0:1}/$_pipname/$_pipname-$pkgver.tar.gz)
+sha256sums=('ca7b92491c32b66ad97be4a44d79aa702e4b6c59167e4189d5ce8cc742b15298')
+
+prepare() {
+  cd $pkgname-$pkgver
+  sed -e 's|~=|>=|' -i setup.py # Fix jupyterlab_server version
+}
+
+build() {
+  cd $pkgname-$pkgver
+  export NODE_OPTIONS=--max-old-space-size=1024
+  python setup.py build 
+}
+
+package() {
+  cd $pkgname-$pkgver
+  python setup.py install --root="$pkgdir" --optimize=1
+  mv "$pkgdir"/usr/etc "$pkgdir"
+
+  install -Dm644 LICENSE "$pkgdir"/usr/share/licenses/$pkgname/LICENSE
+}

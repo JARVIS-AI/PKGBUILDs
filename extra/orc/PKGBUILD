@@ -1,38 +1,42 @@
-# $Id$
+# Maintainer: Jan Alexander Steffens (heftig) <jan.steffens@gmail.com>
+# Maintainer: Jan de Groot <jgc@archlinux.org>
 # Contributor: Ionut Biru <ibiru@archlinux.org>
 
 # ALARM: Kevin Mihelich <kevin@archlinuxarm.org>
 #  - drop valgrind makedepend
 
 pkgname=orc
-pkgver=0.4.26
-pkgrel=1
+pkgver=0.4.31
+pkgrel=2
 pkgdesc="Optimized Inner Loop Runtime Compiler"
-arch=(i686 x86_64)
+url="https://gitlab.freedesktop.org/gstreamer/orc"
+arch=(x86_64)
 license=(custom)
-url="https://cgit.freedesktop.org/gstreamer/orc/"
 depends=(glibc)
-source=(http://gstreamer.freedesktop.org/data/src/orc/orc-${pkgver}.tar.xz)
-sha256sums=('7d52fa80ef84988359c3434e1eea302d077a08987abdde6905678ebcad4fa649')
+makedepends=(git gtk-doc meson)
+_commit=9901a96eaff271c2d3b595214213f6805ff803c8  # tags/0.4.31^0
+source=("git+https://gitlab.freedesktop.org/gstreamer/orc.git#commit=$_commit")
+sha256sums=('SKIP')
 
-prepare() {
-  cd $pkgname-$pkgver
+pkgver() {
+  cd $pkgname
+  git describe --tags | sed 's/^orc-//;s/-/+/g'
 }
 
-build () {
-  cd $pkgname-$pkgver
-  ./configure --prefix=/usr --disable-static
-  sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
-  make
+prepare() {
+  cd $pkgname
+}
+
+build() {
+  arch-meson $pkgname build
+  ninja -C build
 }
 
 check() {
-  cd $pkgname-$pkgver
-  make check
+  meson test -C build --print-errorlogs
 }
 
 package() {
-  cd $pkgname-$pkgver
-  make DESTDIR="$pkgdir" install
-  install -Dm644 COPYING "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  DESTDIR="$pkgdir" meson install -C build
+  install -Dt "$pkgdir/usr/share/licenses/$pkgname" -m644 $pkgname/COPYING
 }

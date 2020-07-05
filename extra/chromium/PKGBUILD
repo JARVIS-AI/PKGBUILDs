@@ -1,77 +1,102 @@
-# $Id: PKGBUILD 160354 2012-06-01 12:58:14Z dreisner $
 # Maintainer: Evangelos Foutras <evangelos@foutrelis.com>
 # Contributor: Pierre Schmitz <pierre@archlinux.de>
 # Contributor: Jan "heftig" Steffens <jan.steffens@gmail.com>
 # Contributor: Daniel J Griffiths <ghost1227@archlinux.us>
 
 # ALARM: Kevin Mihelich <kevin@archlinuxarm.org>
-#  - add ffmpeg to _system_libs
 #  - makeflags to -j4 on v7, RAM constraints
-#  - Gentoo patch to remove lingering built-in ffmpeg code
-#  - patches to fix GN for AArch64 and ARM toolchain definitions
+#  - build ARMv7 with NEON
+#  - let build set march on AArch64
+#  - is_cfi=false, use_gold=false
+#  - clang_use_default_sample_profile=false, AFDO breaks distcc
+#  - use_allocator="none", tcmalloc breaks ARM
 
 buildarch=12
 highmem=1
 
+pkgname=chromium
+pkgver=83.0.4103.116
+pkgrel=2
+_launcher_ver=6
+pkgdesc="A web browser built for speed, simplicity, and security"
+arch=('x86_64')
+url="https://www.chromium.org/Home"
+license=('BSD')
+depends=('gtk3' 'nss' 'alsa-lib' 'xdg-utils' 'libxss' 'libcups' 'libgcrypt'
+         'ttf-liberation' 'systemd' 'dbus' 'libpulse' 'pciutils' 'json-glib'
+         'desktop-file-utils' 'hicolor-icon-theme')
+makedepends=('python' 'python2' 'gperf' 'yasm' 'mesa' 'ninja' 'nodejs' 'git'
+             'libpipewire02' 'libva' 'clang' 'lld' 'gn' 'java-runtime-headless'
+             'python2-setuptools')
+optdepends=('libpipewire02: WebRTC desktop sharing under Wayland'
+            'libva: hardware-accelerated video decode (experimental)'
+            'kdialog: needed for file dialogs in KDE'
+            'org.freedesktop.secrets: password storage backend on GNOME / Xfce'
+            'kwallet: for storing passwords in KWallet on KDE desktops')
+install=chromium.install
+source=(https://commondatastorage.googleapis.com/chromium-browser-official/$pkgname-$pkgver.tar.xz
+        chromium-launcher-$_launcher_ver.tar.gz::https://github.com/foutrelis/chromium-launcher/archive/v$_launcher_ver.tar.gz
+        clean-up-a-call-to-set_utf8.patch
+        iwyu-std-numeric_limits-is-defined-in-limits.patch
+        add-missing-algorithm-header-in-crx_install_error.cc.patch
+        libstdc-fix-incomplete-type-in-AXTree-for-NodeSetSiz.patch
+        include-memory-header-to-get-the-definition-of-std-u.patch
+        make-some-of-blink-custom-iterators-STL-compatible.patch
+        avoid-double-destruction-of-ServiceWorkerObjectHost.patch
+        force-mp3-files-to-have-a-start-time-of-zero.patch
+        v8-remove-soon-to-be-removed-getAllFieldPositions.patch
+        chromium-fix-vaapi-on-intel.patch
+        chromium-83-gcc-10.patch
+        chromium-skia-harmony.patch
+        0001-crashpad-include-limits.patch
+        chromium-81.0.4044.122-Fix-sandbox-Aw-snap-for-syscalls-403-and-407.patch)
+sha256sums=('bb0c7e8dfee9f3a5e30eca7f34fc9f21caefa82a86c058c552f52b1ae2da2ac3'
+            '04917e3cd4307d8e31bfb0027a5dce6d086edb10ff8a716024fbb8bb0c7dccf1'
+            '58c41713eb6fb33b6eef120f4324fa1fb8123b1fbc4ecbe5662f1f9779b9b6af'
+            '675fb3d6276cce569a641436465f58d5709d1d4a5f62b7052989479fd4aaea24'
+            '0e2a78e4aa7272ab0ff4a4c467750e01bad692a026ad9828aaf06d2a9418b9d8'
+            '50687079426094f2056d1f4806dc30fc8d6bad16190520e57ba087ec5db1d778'
+            '071326135bc25226aa165639dff80a03670a17548f2d2ff5cc4f40982b39c52a'
+            '3d7f20e1d2ee7d73ed25e708c0d59a0cb215fcce10a379e3d48a856533c4b0b7'
+            'd793842e9584bf75e3779918297ba0ffa6dd05394ef5b2bf5fb73aa9c86a7e2f'
+            'abc3fad113408332c3b187b083bf33eba59eb5c87fa3ce859023984b5804623c'
+            'e042024423027ad3ef729a7e4709bdf9714aea49d64cfbbf46a645a05703abc2'
+            'e495f2477091557b15bff2c99831e0a3db64ea2ebde7dcb22857a6469c944b9a'
+            '3e5ba8c0a70a4bc673deec0c61eb2b58f05a4c784cbdb7c8118be1eb6580db6d'
+            '771292942c0901092a402cc60ee883877a99fb804cb54d568c8c6c94565a48e1'
+            'df99f49ad58b70c9a3e1827d7e80b62e4363419334ed83373cf55b79c17b6f10'
+            '4837f797a910795bf3161805a3302d5f3701573ca90da8af32b2f4aa62510d20')
+
 # Possible replacements are listed in build/linux/unbundle/replace_gn_files.py
 # Keys are the names in the above script; values are the dependencies in Arch
-declare -rgA _system_libs=(
+declare -gA _system_libs=(
   [ffmpeg]=ffmpeg
   [flac]=flac
-  [harfbuzz-ng]=harfbuzz-icu
+  [fontconfig]=fontconfig
+  [freetype]=freetype2
+  [harfbuzz-ng]=harfbuzz
   [icu]=icu
+  [libdrm]=
   [libjpeg]=libjpeg
-  [libpng]=libpng
+  #[libpng]=libpng    # https://crbug.com/752403#c10
   [libvpx]=libvpx
   [libwebp]=libwebp
-  #[libxml]=libxml2    # https://bugs.archlinux.org/task/29939
+  [libxml]=libxml2
   [libxslt]=libxslt
+  [opus]=opus
   [re2]=re2
   [snappy]=snappy
   [yasm]=
   [zlib]=minizip
 )
-
-pkgname=chromium
-pkgver=55.0.2883.87
-pkgrel=1
-_launcher_ver=3
-pkgdesc="The open-source project behind Google Chrome, an attempt at creating a safer, faster, and more stable browser"
-arch=('i686' 'x86_64' 'armv7h' 'aarch64')
-url="https://www.chromium.org/Home"
-license=('BSD')
-depends=('gtk2' 'nss' 'alsa-lib' 'xdg-utils' 'libxss' 'libexif' 'libgcrypt'
-         'ttf-font' 'systemd' 'dbus' 'libpulse' 'perl' 'perl-file-basedir'
-         'pciutils' 'desktop-file-utils' 'hicolor-icon-theme')
+_unwanted_bundled_libs=(
+  $(printf "%s\n" ${!_system_libs[@]} | sed 's/^libjpeg$/&_turbo/')
+)
 depends+=(${_system_libs[@]})
-makedepends=('python2' 'gperf' 'yasm' 'mesa' 'ninja' 'git')
-optdepends=('kdebase-kdialog: needed for file dialogs in KDE'
-            'gnome-keyring: for storing passwords in GNOME keyring'
-            'kwallet: for storing passwords in KWallet')
-install=chromium.install
-source=(https://commondatastorage.googleapis.com/chromium-browser-official/$pkgname-$pkgver.tar.xz
-        chromium-launcher-$_launcher_ver.tar.gz::https://github.com/foutrelis/chromium-launcher/archive/v$_launcher_ver.tar.gz
-        chromium.desktop
-        chromium-52.0.2743.116-unset-madv_free.patch
-        chromium-system-ffmpeg-r4.patch
-        chromium-icu58.patch
-        chromium-widevine.patch
-        0001-Add-aarch64-GN-support.patch
-        0002-ARM-toolchain-fixes.patch)
-sha256sums=('e81bd3140d9c84dfee04d9a94686dfe6a20ae79475d84f17154c5536dcb81a58'
-            '8b01fb4efe58146279858a754d90b49e5a38c9a0b36a1f84cbb7d12f92b84c28'
-            '028a748a5c275de9b8f776f97909f999a8583a4b77fd1cd600b4fc5c0c3e91e9'
-            '3b3aa9e28f29e6f539ed1c7832e79463b13128863a02e9c6fecd16c30d61c227'
-            'e3c474dbf3822a0be50695683bd8a2c9dfc82d41c1524a20b4581883c0c88986'
-            'fad964da0295a6a7b4393778e717ebdfd37dec33fe78beb2c639abd3973deb7a'
-            'd6fdcb922e5a7fbe15759d39ccc8ea4225821c44d98054ce0f23f9d1f00c9808'
-            'b2333cf0097264632a7e8bd11c3ee25a5f615f1d83481d2867aa18686e52f6ce'
-            '140b79fcb3f12c8f9b4bb6d32d366c7731830d99a527602d6c7b3874933f75d0')
 
-# Google API keys (see http://www.chromium.org/developers/how-tos/api-keys)
+# Google API keys (see https://www.chromium.org/developers/how-tos/api-keys)
 # Note: These are for Arch Linux use ONLY. For your own distribution, please
-# get your own set of keys. Feel free to contact foutrelis@archlinux.org for
-# more information.
+# get your own set of keys.
 #  - Arch Linux ARM has obtained permission to use the Arch Linux keys.
 _google_api_key=AIzaSyDwr302FpOSkGRpLlUpPThNTDPbXcIn_FM
 _google_default_client_id=413772536636.apps.googleusercontent.com
@@ -80,129 +105,204 @@ _google_default_client_secret=0ZChLK6AxeA3Isu96MkwqDR4
 prepare() {
   cd "$srcdir/$pkgname-$pkgver"
 
-  # Arch Linux ARM fixes
-  patch -Np1 -i ../0001-Add-aarch64-GN-support.patch
-  patch -Np1 -i ../0002-ARM-toolchain-fixes.patch
+  # Allow building against system libraries in official builds
+  sed -i 's/OFFICIAL_BUILD/GOOGLE_CHROME_BUILD/' \
+    tools/generate_shim_headers/generate_shim_headers.py
 
+  # Arch Linux ARM fixes
+  patch -p1 -i ../0001-crashpad-include-limits.patch
+  patch -p1 -i ../chromium-81.0.4044.122-Fix-sandbox-Aw-snap-for-syscalls-403-and-407.patch
+
+  # Build ARMv7 with NEON
   [[ $CARCH == "armv7h" ]] && MAKEFLAGS="-j4" && CFLAGS=`echo $CFLAGS | sed -e 's/vfpv3-d16/neon/'` && CXXFLAGS="$CFLAGS"
 
-  # Enable support for the Widevine CDM plugin
-  # libwidevinecdm.so is not included, but can be copied over from Chrome
-  # (Version string doesn't seem to matter so let's go with "Pinkie Pie")
-  sed "s/@WIDEVINE_VERSION@/Pinkie Pie/" ../chromium-widevine.patch |
-    patch -Np1
+  # Allow build to set march and options on AArch64 (crc, crypto)
+  [[ $CARCH == "aarch64" ]] && CFLAGS=`echo $CFLAGS | sed -e 's/-march=armv8-a//'` && CXXFLAGS="$CFLAGS"
 
-  # Build fixes from Gentoo
-  patch -Np1 -i ../chromium-system-ffmpeg-r4.patch
-  patch -Np1 -i ../chromium-icu58.patch
+  # https://crbug.com/893950
+  sed -i -e 's/\<xmlMalloc\>/malloc/' -e 's/\<xmlFree\>/free/' \
+    third_party/blink/renderer/core/xml/*.cc \
+    third_party/blink/renderer/core/xml/parser/xml_document_parser.cc \
+    third_party/libxml/chromium/*.cc
 
-  # Disable MADV_FREE (if set by glibc)
-  # https://bugzilla.redhat.com/show_bug.cgi?id=1361157
-  patch -Np1 -i ../chromium-52.0.2743.116-unset-madv_free.patch
+  # https://chromium-review.googlesource.com/c/chromium/src/+/2145261
+  patch -Np1 -i ../clean-up-a-call-to-set_utf8.patch
 
-  # Work around bug in blink in which GCC 6 optimizes away null pointer checks
-  # https://bugs.debian.org/cgi-bin/bugreport.cgi?bug=833524
-  # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=68853#c2
-  sed -i '/config("compiler")/ a cflags_cc = [ "-fno-delete-null-pointer-checks" ]' \
-    build/config/linux/BUILD.gn
+  # https://chromium-review.googlesource.com/c/chromium/src/+/2153111
+  patch -Np1 -F3 -i ../iwyu-std-numeric_limits-is-defined-in-limits.patch
 
-  # Use Python 2
-  find . -name '*.py' -exec sed -i -r 's|/usr/bin/python$|&2|g' {} +
+  # https://chromium-review.googlesource.com/c/chromium/src/+/2152333
+  patch -Np1 -i ../add-missing-algorithm-header-in-crx_install_error.cc.patch
 
-  # There are still a lot of relative calls which need a workaround
-  mkdir -p "$srcdir/python2-path"
-  ln -sf /usr/bin/python2 "$srcdir/python2-path/python"
+  # https://chromium-review.googlesource.com/c/chromium/src/+/2132403
+  patch -Np1 -i ../libstdc-fix-incomplete-type-in-AXTree-for-NodeSetSiz.patch
+
+  # https://chromium-review.googlesource.com/c/chromium/src/+/2164645
+  patch -Np1 -i ../include-memory-header-to-get-the-definition-of-std-u.patch
+
+  # https://chromium-review.googlesource.com/c/chromium/src/+/2174199
+  patch -Np1 -i ../make-some-of-blink-custom-iterators-STL-compatible.patch
+
+  # https://chromium-review.googlesource.com/c/chromium/src/+/2094496
+  patch -Np1 -i ../avoid-double-destruction-of-ServiceWorkerObjectHost.patch
+
+  # https://chromium-review.googlesource.com/c/chromium/src/+/2268221
+  patch -Np1 -i ../force-mp3-files-to-have-a-start-time-of-zero.patch
+
+  # https://crbug.com/v8/10393
+  patch -Np1 -d v8 <../v8-remove-soon-to-be-removed-getAllFieldPositions.patch
+
+  # Fixes from Gentoo
+  patch -Np1 -i ../chromium-83-gcc-10.patch
+
+  # https://crbug.com/skia/6663#c10
+  patch -Np0 -i ../chromium-skia-harmony.patch
+
+  # Patch from rpmfusion: chromium-freeworld
+  patch -Np1 -i ../chromium-fix-vaapi-on-intel.patch
+
+  # Force script incompatible with Python 3 to use /usr/bin/python2
+  sed -i '1s|python$|&2|' third_party/dom_distiller_js/protoc_plugins/*.py
+
+  mkdir -p third_party/node/linux/node-linux-x64/bin
+  ln -s /usr/bin/node third_party/node/linux/node-linux-x64/bin/
 
   # Remove bundled libraries for which we will use the system copies; this
   # *should* do what the remove_bundled_libraries.py script does, with the
   # added benefit of not having to list all the remaining libraries
   local _lib
-  for _lib in ${!_system_libs[@]} ${_system_libs[libjpeg]+libjpeg_turbo}; do
-    find -type f -path "*third_party/$_lib/*" \
-      \! -path "*third_party/$_lib/chromium/*" \
-      \! -path "*third_party/$_lib/google/*" \
-      \! -path "*base/third_party/icu/*" \
-      \! -regex '.*\.\(gn\|gni\|isolate\|py\)' \
+  for _lib in ${_unwanted_bundled_libs[@]}; do
+    find "third_party/$_lib" -type f \
+      \! -path "third_party/$_lib/chromium/*" \
+      \! -path "third_party/$_lib/google/*" \
+      \! -path "third_party/harfbuzz-ng/utils/hb_scoped.h" \
+      \! -path 'third_party/yasm/run_yasm.py' \
+      \! -regex '.*\.\(gn\|gni\|isolate\)' \
       -delete
   done
 
   python2 build/linux/unbundle/replace_gn_files.py \
     --system-libraries "${!_system_libs[@]}"
-
-  python2 third_party/libaddressinput/chromium/tools/update-strings.py
 }
 
 build() {
-  make -C "$srcdir/chromium-launcher-$_launcher_ver" PREFIX=/usr
+  make -C chromium-launcher-$_launcher_ver
 
   cd "$srcdir/$pkgname-$pkgver"
 
-  export PATH="$srcdir/python2-path:$PATH"
-  export TMPDIR="$srcdir/temp"
-  mkdir -p "$TMPDIR"
+  if check_buildoption ccache y; then
+    # Avoid falling back to preprocessor mode when sources contain time macros
+    export CCACHE_SLOPPINESS=time_macros
+  fi
+
+  export CC=clang
+  export CXX=clang++
+  export AR=ar
+  export NM=nm
 
   local _flags=(
-    'is_clang=false'
+    'custom_toolchain="//build/toolchain/linux/unbundle:default"'
+    'host_toolchain="//build/toolchain/linux/unbundle:default"'
     'clang_use_chrome_plugins=false'
-    'symbol_level=0'
-    'is_debug=false'
-    'fatal_linker_warnings=false'
+    'clang_use_default_sample_profile=false'
+    'use_allocator="none"'
+    'is_official_build=true' # implies is_cfi=true on x86_64
+    'is_cfi=false'
     'treat_warnings_as_errors=false'
     'fieldtrial_testing_like_official_build=true'
-    'remove_webcore_debug_symbols=true'
     'ffmpeg_branding="Chrome"'
     'proprietary_codecs=true'
+    'rtc_use_pipewire=true'
     'link_pulseaudio=true'
-    'linux_use_bundled_binutils=false'
-    'use_cups=true'
-    'use_gconf=false'
     'use_gnome_keyring=false'
     'use_gold=false'
-    'use_gtk3=false'
-    'use_kerberos=true'
-    'use_pulseaudio=true'
     'use_sysroot=false'
+    'linux_use_bundled_binutils=false'
+    'use_custom_libcxx=false'
     'enable_hangout_services_extension=true'
     'enable_widevine=true'
+    'use_vaapi=true'
     'enable_nacl=false'
-    'enable_nacl_nonsfi=false'
     "google_api_key=\"${_google_api_key}\""
     "google_default_client_id=\"${_google_default_client_id}\""
     "google_default_client_secret=\"${_google_default_client_secret}\""
   )
 
-  python2 tools/gn/bootstrap/bootstrap.py --gn-gen-args "${_flags[*]}"
-  out/Release/gn gen out/Release --args="${_flags[*]}" \
-    --script-executable=/usr/bin/python2
+  if [[ -n ${_system_libs[icu]+set} ]]; then
+    _flags+=('icu_use_data_file=false')
+  fi
 
-  ninja -C out/Release chrome chrome_sandbox chromedriver widevinecdmadapter
+  if check_option strip y; then
+    _flags+=('symbol_level=0')
+  fi
+
+  # Facilitate deterministic builds (taken from build/config/compiler/BUILD.gn)
+  CFLAGS+='   -Wno-builtin-macro-redefined'
+  CXXFLAGS+=' -Wno-builtin-macro-redefined'
+  CPPFLAGS+=' -D__DATE__=  -D__TIME__=  -D__TIMESTAMP__='
+
+  # Do not warn about unknown warning options
+  CFLAGS+='   -Wno-unknown-warning-option'
+  CXXFLAGS+=' -Wno-unknown-warning-option'
+
+  gn gen out/Release --args="${_flags[*]}" --script-executable=/usr/bin/python2
+  ninja -C out/Release chrome chrome_sandbox chromedriver
 }
 
 package() {
-  cd "$srcdir/chromium-launcher-$_launcher_ver"
-
-  make PREFIX=/usr DESTDIR="$pkgdir" install-strip
+  cd chromium-launcher-$_launcher_ver
+  make PREFIX=/usr DESTDIR="$pkgdir" install
   install -Dm644 LICENSE \
     "$pkgdir/usr/share/licenses/chromium/LICENSE.launcher"
 
   cd "$srcdir/$pkgname-$pkgver"
 
   install -D out/Release/chrome "$pkgdir/usr/lib/chromium/chromium"
-  install -Dm644 out/Release/chrome.1 "$pkgdir/usr/share/man/man1/chromium.1"
-  install -Dm644 "$srcdir/chromium.desktop" \
-    "$pkgdir/usr/share/applications/chromium.desktop"
-
-  install -Dm4755 out/Release/chrome_sandbox \
-    "$pkgdir/usr/lib/chromium/chrome-sandbox"
-
-  cp -a out/Release/{*.pak,*.bin,chromedriver,libwidevinecdmadapter.so} \
-    out/Release/locales \
-    out/Release/gen/content/content_resources.pak \
-    "$pkgdir/usr/lib/chromium/"
-
+  install -Dm4755 out/Release/chrome_sandbox "$pkgdir/usr/lib/chromium/chrome-sandbox"
   ln -s /usr/lib/chromium/chromedriver "$pkgdir/usr/bin/chromedriver"
 
-  for size in 22 24 48 64 128 256; do
+  install -Dm644 chrome/installer/linux/common/desktop.template \
+    "$pkgdir/usr/share/applications/chromium.desktop"
+  install -Dm644 chrome/app/resources/manpage.1.in \
+    "$pkgdir/usr/share/man/man1/chromium.1"
+  sed -i \
+    -e 's/@@MENUNAME@@/Chromium/g' \
+    -e 's/@@PACKAGE@@/chromium/g' \
+    -e 's/@@USR_BIN_SYMLINK_NAME@@/chromium/g' \
+    "$pkgdir/usr/share/applications/chromium.desktop" \
+    "$pkgdir/usr/share/man/man1/chromium.1"
+
+  install -Dm644 chrome/installer/linux/common/chromium-browser/chromium-browser.appdata.xml \
+    "$pkgdir/usr/share/metainfo/chromium.appdata.xml"
+  sed -ni \
+    -e 's/chromium-browser\.desktop/chromium.desktop/' \
+    -e '/<update_contact>/d' \
+    -e '/<p>/N;/<p>\n.*\(We invite\|Chromium supports Vorbis\)/,/<\/p>/d' \
+    -e '/^<?xml/,$p' \
+    "$pkgdir/usr/share/metainfo/chromium.appdata.xml"
+
+  local toplevel_files=(
+    chrome_100_percent.pak
+    chrome_200_percent.pak
+    resources.pak
+    v8_context_snapshot.bin
+
+    # ANGLE
+    libEGL.so
+    libGLESv2.so
+
+    chromedriver
+  )
+
+  if [[ -z ${_system_libs[icu]+set} ]]; then
+    toplevel_files+=(icudtl.dat)
+  fi
+
+  cp "${toplevel_files[@]/#/out/Release/}" "$pkgdir/usr/lib/chromium/"
+  install -Dm644 -t "$pkgdir/usr/lib/chromium/locales" out/Release/locales/*.pak
+  install -Dm755 -t "$pkgdir/usr/lib/chromium/swiftshader" out/Release/swiftshader/*.so
+
+  for size in 24 48 64 128 256; do
     install -Dm644 "chrome/app/theme/chromium/product_logo_$size.png" \
       "$pkgdir/usr/share/icons/hicolor/${size}x${size}/apps/chromium.png"
   done

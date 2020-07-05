@@ -1,46 +1,49 @@
-# $Id$
 # Maintainer: Ronald van Haren <ronald.archlinux.org>
 
 # ALARM: Kevin Mihelich <kevin@archlinuxarm.org>
-#  - drop intel-tbb depend, remove TBB=-ltbb SPQR_CONFIG=-DHAVE_TBB
+#  - patch from debian to link with libatomic
 
 pkgname=suitesparse
-pkgver=4.5.3
-pkgrel=3
+pkgver=5.8.0
+pkgrel=2
 pkgdesc="A collection of sparse matrix libraries"
 url="http://faculty.cse.tamu.edu/davis/suitesparse.html"
-arch=('i686' 'x86_64')
+arch=('x86_64')
 conflicts=('umfpack')
 provides=('umfpack')
 replaces=('umfpack')
-depends=('metis' 'lapack')
+depends=('metis' 'lapack' 'tbb' 'mpfr')
 makedepends=('gcc-fortran' 'cmake' 'chrpath')
 license=('GPL')
 options=('staticlibs')
-source=("http://faculty.cse.tamu.edu/davis/SuiteSparse/SuiteSparse-$pkgver.tar.gz" suitesparse-link-tbb.patch)
-sha1sums=('2403007be38266e3607edfbf3833bee7f6bcb0f1'
-          '4f0b3836e8c3c1ec5be01f988f136cee4a2cb936')
+source=($pkgname-$pkgver.tar.gz::"https://github.com/DrTimothyAldenDavis/SuiteSparse/archive/v$pkgver.tar.gz"
+        suitesparse-no-demo.patch
+        libatomic.patch)
+sha256sums=('94a9b7134eb4dd82b97f1a22a6b464feb81e73af2dcdf683c6f252285191df1d'
+            '409b32e546ec4936d0d88e39c59ee68dfd9f630d8c454ce1e3d58243df7ad396'
+            'b91e5ee92c027a5b216debccee2d37712b31a4fb2a544d7721060ccf2f60a7da')
 
 prepare() {
-# Fix linking with intel-tbb
-  cd SuiteSparse
-  patch -p1 -i ../suitesparse-link-tbb.patch
+  cd SuiteSparse-$pkgver
+  patch -p1 -i ../suitesparse-no-demo.patch # Don't run demo
+  [[ $CARCH == "arm" || $CARCH == "armv6h" ]] && patch -p1 -i ../libatomic.patch || true
 }
 
 build() {
-   cd "$srcdir"/SuiteSparse
+  cd SuiteSparse-$pkgver
 
-   BLAS=-lblas MY_METIS_LIB=/usr/lib/libmetis.so make
+  BLAS=-lblas LAPACK=-llapack TBB=-ltbb SPQR_CONFIG=-DHAVE_TBB MY_METIS_LIB=/usr/lib/libmetis.so make
 }
 
 
 package() {
-   cd "${srcdir}"/SuiteSparse
-   install -dm755 "${pkgdir}"/usr/{include,lib}
+  cd SuiteSparse-$pkgver
+  install -dm755 "${pkgdir}"/usr/{include,lib}
 
-   BLAS=-lblas MY_METIS_LIB=/usr/lib/libmetis.so \
-     make INSTALL_LIB="${pkgdir}"/usr/lib INSTALL_INCLUDE="${pkgdir}"/usr/include install
+  BLAS=-lblas LAPACK=-llapack TBB=-ltbb SPQR_CONFIG=-DHAVE_TBB MY_METIS_LIB=/usr/lib/libmetis.so \
+  make INSTALL_LIB="${pkgdir}"/usr/lib INSTALL_INCLUDE="${pkgdir}"/usr/include install
 
-   # fix RPATH
-   chrpath -d "$pkgdir"/usr/lib/*
+  # fix RPATH
+  chrpath -d "$pkgdir"/usr/lib/*
 }
+

@@ -1,4 +1,3 @@
-# $Id: PKGBUILD 179933 2013-03-12 17:11:40Z andyrtr $
 # Maintainer: Andreas Radke <andyrtr@archlinux.org>
 # Maintainer: Guillaume ALAUX <guillaume@archlinux.org>
 # Contributor: Jan de Groot <jgc@archlinux.org>
@@ -8,34 +7,37 @@
 #  - --enable-zero
 #  - added our architectures to set _JARCH
 #  - strip -D_FORTIFY_SOURCE=2 from C/CXXFLAGS
+#  - patch to fix fPIC usage on AArch64
 
 pkgname=('jre7-openjdk-headless' 'jre7-openjdk' 'jdk7-openjdk' 'openjdk7-src')
 pkgbase=java7-openjdk
 _java_ver=7
-_icedtea_ver=2.6.7
+_icedtea_ver=2.6.22
 #pkgver() {
 #  _updatever=$(grep -E "^JDK_UPDATE_VERSION = (.)+" ${srcdir}/icedtea-${_icedtea_ver}/Makefile.am \
 #    | sed -r 's/^JDK_UPDATE_VERSION = (.+)$/\1/')
 #  echo ${_java_ver}.u${_updatever}_${_icedtea_ver}
 #}
-_updatever=111
+_updatever=261
 pkgver=${_java_ver}.u${_updatever}_${_icedtea_ver}
 pkgrel=1
 
 _bootstrap=0 # 0/1 for quick build or full bootstrap
 
-arch=('i686' 'x86_64')
+arch=('x86_64')
 url='http://icedtea.classpath.org'
 license=('custom')
 options=('!emptydirs')
 makedepends=('jdk7-openjdk' 'libxp' 'libxslt'
-             'alsa-lib' 'apache-ant>=1.8.1' 'giflib' 'libpng>=1.5.7' 'gtk2'
+             'alsa-lib' 'giflib' 'libpng>=1.5.7' 'gtk2'
              'java-rhino' 'libpulse>=0.9.11' 'zip' 'unzip' 'cpio' 'fastjar' 'wget' 'procps-ng' 'inetutils'
              'eclipse-ecj' 'pcsclite' 'lksctp-tools')
+# checkdepends=('procps-ng') # requires now systemtap and maybe more from AUR -> tests disabled
 
+_antver=1.9.14
 _icedtea_url=http://icedtea.classpath.org/download
 _drops_url=${_icedtea_url}/drops/icedtea7/${_icedtea_ver}
-source=(${_icedtea_url}/source/icedtea-${_icedtea_ver}.tar.gz
+source=(${_icedtea_url}/source/icedtea-${_icedtea_ver}.tar.xz{,.sig}
         icedtea_${_icedtea_ver}_openjdk.tar.bz2::${_drops_url}/openjdk.tar.bz2
         icedtea_${_icedtea_ver}_corba.tar.bz2::${_drops_url}/corba.tar.bz2
         icedtea_${_icedtea_ver}_jaxp.tar.bz2::${_drops_url}/jaxp.tar.bz2
@@ -43,22 +45,32 @@ source=(${_icedtea_url}/source/icedtea-${_icedtea_ver}.tar.gz
         icedtea_${_icedtea_ver}_jdk.tar.bz2::${_drops_url}/jdk.tar.bz2
         icedtea_${_icedtea_ver}_langtools.tar.bz2::${_drops_url}/langtools.tar.bz2
         icedtea_${_icedtea_ver}_hotspot.tar.bz2::${_drops_url}/hotspot.tar.bz2
+        https://archive.apache.org/dist/ant/binaries/apache-ant-${_antver}-bin.tar.bz2
         fontconfig-paths.diff
-        openjdk7_nonreparenting-wm.diff)
+        openjdk7_nonreparenting-wm.diff
+        icedtea-jdk-xattr.diff
+        fix-xattr-include.patch
+        text-relocations.diff)
+# EdDSA key may require `keyserver sks-keyservers.net` in GPG config
+validpgpkeys=('5132579DD1540ED23E04C5A0CFDA0F9B35964222') # Andrew John Hughes
 
 # http://icedtea.classpath.org/bugzilla/show_bug.cgi?id=2357
 
-sha256sums=('55dc6f3cf3a49745132c53592f0980c1aca37385c12dce33fea229471979c88e'
-            '5cacafbe543ad4b9179ab1cbfdb7d9baf8aa04d954510b9e7baf0bfef7db6878'
-            '0049439ea08f8391c0dae464ceb249f0af9d8e70c68142a734ceb25fa145e764'
-            '9fbd60855406879b898843d7eeac2a5df64b0ccdeb927c615c5be648b8fac70b'
-            'c9fcc1553bbb4fe1dd5ae4616b6a1f52f42c2bb990fd1cbdafeac43bfd6b30f7'
-            'e93cd330b2346bc6145bb76a141233aa1cc083eb25bbc82819632e1581290d81'
-            '13e700318ed4a00bc85890525a1fe16b7ff4798ad9e49acdf730b6dfe1a6b4e4'
-            '0412594f4dabd77a759957bba038aedf277dee87d06153505fb63919c0cb6a5c'
+sha256sums=('34fa9f3898e72f7ec2e7b67ccd947e1fd9a7a943d1969b0cf24bc56391da33c0'
+            'SKIP'
+            '65fe3b8d22e1bceaf374402346ad4649e149d3b3329c3b0fa2ed0ad9669a1818'
+            'a07a927a03e1e4199c77ef352aaaf6067101d076a1448a930e1ef2654e9185db'
+            '988ee7a724385e482137f3962db151c3e522a94dd6ae7285941a07929868557a'
+            '8cae72b86bcf782506580ab0efa5c1221cb80b967ea432d1ea081e0d557637da'
+            '3719a0a6394e4674008fb2c62f428bcae2e8695a2462cf49efec5d5711f8d112'
+            '9625754a76451e32f6df941c375102cb876737ae607fd76893cb83cfc3657021'
+            'dad4c549767780314f27558873eb12689fecf17aa1ae3792e77924c4350dca43'
+            'efad74bd98d9eb72b080a3e08f5b17118e05372d22e3aa3bc0bd1686aa71361c'
             '9ad943ceb3dbcdf45d72974fc3667886a7ed65c69ab9abc17be5412827551a7f'
-            '56b919ababb13bd6afdcdaceb112b529b6e82539255f2dae9a7e5eb91645164b')
-
+            '56b919ababb13bd6afdcdaceb112b529b6e82539255f2dae9a7e5eb91645164b'
+            '8da7248a72c60f4cb82c33712bdd8ce8f25b0cd147816efb7112f18a752fcabd'
+            '9a48d91af72d28d7f0fca8ea6f5e42085d7c877c7141a7d895331ab1f5882086'
+            '6dd92db9ba302141c94a2031082e3e130bcb370a5adcb8185467dd22cbff6b51')
 
 noextract=(icedtea_${_icedtea_ver}_openjdk.tar.bz2
            icedtea_${_icedtea_ver}_corba.tar.bz2
@@ -80,6 +92,14 @@ _nonheadless=(bin/policytool
               lib/${_JARCH}/libsplashscreen.so
               lib/${_JARCH}/xawt/libmawt.so)
  
+prepare() {
+  cp "${srcdir}"/*.diff "${srcdir}"/icedtea-${_icedtea_ver}/patches
+ 
+  cd "${srcdir}/icedtea-${_icedtea_ver}"
+  patch -Np1 -i ../fix-xattr-include.patch
+  ./autogen.sh
+}
+
 build() {
   cd "${srcdir}/icedtea-${_icedtea_ver}"
 
@@ -88,11 +108,10 @@ build() {
   export ALT_PARALLEL_COMPILE_JOBS="${MAKEFLAGS/-j}"
   export HOTSPOT_BUILD_JOBS="${ALT_PARALLEL_COMPILE_JOBS}"
 
-  . /etc/profile.d/apache-ant.sh
-
-  cp "${srcdir}"/*.diff "${srcdir}"/icedtea-${_icedtea_ver}/patches
   export DISTRIBUTION_PATCHES="patches/fontconfig-paths.diff \
-                               patches/openjdk7_nonreparenting-wm.diff"
+                               patches/openjdk7_nonreparenting-wm.diff \
+                               patches/icedtea-jdk-xattr.diff \
+                               patches/text-relocations.diff"
 
   if [ "$_bootstrap" = "1" ]; then
      BOOTSTRAPOPT="--enable-bootstrap --with-ecj-jar=/usr/share/java/ecj.jar"
@@ -100,6 +119,10 @@ build() {
      BOOTSTRAPOPT="--disable-bootstrap"
   fi
 
+  export EXTRA_CFLAGS="$CFLAGS $CPPFLAGS -std=gnu++98 -Wno-error -fno-delete-null-pointer-checks -fno-lifetime-dse -fno-strict-overflow"
+  export EXTRA_LDFLAGS="$LDFLAGS"
+
+  export PATH="${srcdir}/apache-ant-${_antver}/bin:$PATH"
   ./configure \
         ${BOOTSTRAPOPT} \
         --with-parallel-jobs="${MAKEFLAGS/-j}" \
@@ -116,8 +139,6 @@ build() {
         --with-langtools-src-zip="${srcdir}/icedtea_${_icedtea_ver}_langtools.tar.bz2" \
         --enable-nss \
         --with-rhino \
-        --with-abs-install-dir=${_jvmdir} \
-        --enable-infinality=no \
         --disable-docs \
         --enable-zero
     make
@@ -125,7 +146,7 @@ build() {
 
 check() {
   cd "${srcdir}/icedtea-${_icedtea_ver}"
-#  make -k check
+  #make -k check
 }
 
 package_jre7-openjdk-headless() {
@@ -249,7 +270,9 @@ package_jre7-openjdk() {
 
   # Install desktop files.
   install -d -m755 "${pkgdir}/usr/share/applications"
-  install -m644 "${srcdir}/icedtea-${_icedtea_ver}/policytool.desktop" "${pkgdir}/usr/share/applications"
+  sed "s#_BINDIR_#${_jvmdir}/jre/bin#" \
+    "${srcdir}/icedtea-${_icedtea_ver}/policytool.desktop" \
+    > "${pkgdir}/usr/share/applications/policytool.desktop"
 
   # link license
   install -d -m755 "${pkgdir}/usr/share/licenses"
@@ -295,7 +318,10 @@ package_jdk7-openjdk() {
 
   # Install desktop files.
   install -d -m755 "${pkgdir}/usr/share/applications"
-  install -m644 "${srcdir}/icedtea-${_icedtea_ver}/jconsole.desktop" "${pkgdir}/usr/share/applications"
+  sed "s#_BINDIR_#${_jvmdir}/bin#" \
+    "${srcdir}/icedtea-${_icedtea_ver}/jconsole.desktop" \
+    > "${pkgdir}/usr/share/applications/jconsole.desktop"
+
 
   # link license
   install -d -m755 "${pkgdir}/usr/share/licenses"

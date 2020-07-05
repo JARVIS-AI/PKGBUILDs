@@ -1,71 +1,65 @@
-# $Id: PKGBUILD 240297 2015-06-03 10:22:03Z fyan $
 # Maintainer: Felix Yan <felixonmars@archlinux.org>
 # Contributor: Andrea Scarpino <andrea@archlinux.org>
 
 # ALARM: Kevin Mihelich <kevin@archlinuxarm.org>
 #  - -no-reduce-relocations -- not available on ARM
 #  - explicitly disable x86 optimizations
-#  - use OpenGLES 2.0
+#  - -no-feature-getentropy for old kernel compatibility
 
-pkgname=qt5-base
-_qtver=5.7.1
+pkgbase=qt5-base
+pkgname=(qt5-base qt5-xcb-private-headers)
+_qtver=5.15.0
 pkgver=${_qtver/-/}
-pkgrel=1
-arch=('i686' 'x86_64')
-url='http://qt-project.org/'
+pkgrel=4
+arch=('x86_64')
+url='https://www.qt.io'
 license=('GPL3' 'LGPL3' 'FDL' 'custom')
 pkgdesc='A cross-platform application and UI framework'
-depends=('libjpeg-turbo' 'xcb-util-keysyms' 'libgl' 'fontconfig'
-         'xcb-util-wm' 'libxrender' 'libxi' 'sqlite' 'xcb-util-image' 'icu'
-         'tslib' 'libinput' 'libsm' 'libxkbcommon-x11' 'libproxy' 'libcups')
-makedepends=('mtdev' 'libfbclient' 'libmariadbclient' 'sqlite' 'unixodbc' 'postgresql-libs' 'alsa-lib' 'gst-plugins-base-libs'
-             'gtk3' 'libpulse' 'cups' 'freetds')
+depends=('libjpeg-turbo' 'xcb-util-keysyms' 'xcb-util-renderutil' 'libgl' 'fontconfig' 'xdg-utils'
+         'shared-mime-info' 'xcb-util-wm' 'libxrender' 'libxi' 'sqlite' 'xcb-util-image' 'mesa'
+         'tslib' 'libinput' 'libxkbcommon-x11' 'libproxy' 'libcups' 'double-conversion' 'md4c')
+makedepends=('libfbclient' 'mariadb-libs' 'sqlite' 'unixodbc' 'postgresql-libs' 'alsa-lib' 'gst-plugins-base-libs'
+             'gtk3' 'libpulse' 'cups' 'freetds' 'vulkan-headers')
 optdepends=('qt5-svg: to use SVG icon themes'
+            'qt5-wayland: to run Qt applications in a Wayland session'
+            'qt5-translations: for some native UI translations'
             'postgresql-libs: PostgreSQL driver'
-            'libmariadbclient: MariaDB driver'
+            'mariadb-libs: MariaDB driver'
             'unixodbc: ODBC driver'
             'libfbclient: Firebird/iBase driver'
             'freetds: MS SQL driver'
-            'mtdev: evdev plugin'
-            'gtk3: GTK platform plugin')
+            'gtk3: GTK platform plugin'
+            'perl: for fixqt4headers and syncqt')
 conflicts=('qtchooser')
 groups=('qt' 'qt5')
-_pkgfqn="${pkgname/5-/}-opensource-src-${_qtver}"
-source=("http://download.qt.io/official_releases/qt/${pkgver%.*}/${_qtver}/submodules/${_pkgfqn}.tar.xz"
-        qtbug-49061.patch::"https://github.com/qt/qtbase/commit/494376f9.patch"
-        qtbug-55583.patch::"https://github.com/qt/qtbase/commit/84ea00d4.patch")
-md5sums=('f0809befe04160fbb73bbf38a06a2073'
-         'c86af27562bbbe05c3defd63d00130fd'
-         '7b11584d9ea1ccb6c419e9b9816dee63')
+_pkgfqn="${pkgbase/5-/}-everywhere-src-${_qtver}"
+source=("https://download.qt.io/official_releases/qt/${pkgver%.*}/${_qtver}/submodules/${_pkgfqn}.tar.xz"
+        "qt5-base-QTBUG-82910.patch::https://codereview.qt-project.org/gitweb?p=qt/qtbase.git;a=patch;h=54aa63be9b74e8de72db9efbe6809ab1a97b29a7"
+         qt5-base-cflags.patch
+         qtbug-74252.patch
+         qtbug-78966.patch::"https://code.qt.io/cgit/qt/qtbase.git/patch/?id=777f2a1c"
+         qtbug-84619.patch::"https://code.qt.io/cgit/qt/qtbase.git/patch/?id=9d2b474b")
+sha256sums=('9e7af10aece15fa9500369efde69cb220eee8ec3a6818afe01ce1e7d484824c5'
+            'abb94453c9fe54fde4811bc5475b88796c8db1f5cd75ddc68918aff20139b1aa'
+            'cf707cd970650f8b60f8897692b36708ded9ba116723ec8fcd885576783fe85c'
+            '0c489d2faedd35670232a2c028c5c78a606ab81bb6f40f58e3cfe2bc6b6ac3b2'
+            'd7d58b2cadd6e79c3dfb69da664ecac9c95a78d6e142cb8687fce68e24a10776'
+            'eec8234c7e4d5bb583f39f2cf735536be350296b93af8b469260424ad7ccdb04')
 
 prepare() {
   cd ${_pkgfqn}
 
-  # Build qmake using Arch {C,LD}FLAGS
-  # This also sets default {C,CXX,LD}FLAGS for projects built using qmake
-  sed -i -e "s|^\(QMAKE_CFLAGS_RELEASE.*\)|\1 ${CFLAGS}|" \
-    mkspecs/common/gcc-base.conf
-  sed -i -e "s|^\(QMAKE_LFLAGS_RELEASE.*\)|\1 ${LDFLAGS}|" \
-    mkspecs/common/g++-unix.conf
-
-  # Use python2 for Python 2.x
-  find . -name '*.py' -exec sed -i \
-    's|#![ ]*/usr/bin/python$|&2|;s|#![ ]*/usr/bin/env python$|&2|' {} +
-
-  # Fix libsystemd-journal detection
-  sed -e 's|libsystemd-journal|libsystemd|' -i config.tests/unix/journald/journald.pro -i src/corelib/global/global.pri
-
-  # Don't unload plugins in QPluginLoader https://bugreports.qt.io/browse/QTBUG-49061
-  patch -p1 -i ../qtbug-49061.patch
-
-  # Fix file chooser segfault on gnome/wayland https://bugreports.qt.io/browse/QTBUG-55583
-  patch -p1 -i ../qtbug-55583.patch
+  patch -p1 -i ../qt5-base-QTBUG-82910.patch # https://codereview.qt-project.org/c/qt/qtbase/+/299182
+  patch -p1 -i ../qtbug-74252.patch # Fix displaying custom icons
+  patch -p1 -i ../qtbug-78966.patch # Fix QToolButton menus on multi-screen systems
+  patch -p1 -i ../qtbug-84619.patch # Fix deadlock
+  patch -p1 -i ../qt5-base-cflags.patch # Use system CFLAGS
 }
 
 build() {
   cd ${_pkgfqn}
 
-  PYTHON=/usr/bin/python2 ./configure -confirm-license -opensource -v \
+  ./configure -confirm-license -opensource -v \
     -prefix /usr \
     -docdir /usr/share/doc/qt \
     -headerdir /usr/include/qt \
@@ -78,10 +72,10 @@ build() {
     -openssl-linked \
     -nomake examples \
     -no-rpath \
-    -optimized-qmake \
     -dbus-linked \
     -system-harfbuzz \
     -journald \
+    -no-mimetype-database \
     -no-use-gold-linker \
     -no-reduce-relocations \
     -no-sse2 \
@@ -91,17 +85,18 @@ build() {
     -no-sse4.2 \
     -no-avx \
     -no-avx2 \
-    -opengl es2
+    -no-feature-getentropy
 
   make
 }
 
-package() {
+package_qt5-base() {
+  pkgdesc='A cross-platform application and UI framework'
+
   cd ${_pkgfqn}
   make INSTALL_ROOT="${pkgdir}" install
 
-  install -D -m644 LGPL_EXCEPTION.txt \
-    "${pkgdir}"/usr/share/licenses/${pkgname}/LGPL_EXCEPTION.txt
+  install -Dm644 LICENSE* -t "$pkgdir"/usr/share/licenses/$pkgbase
 
   # Drop QMAKE_PRL_BUILD_DIR because reference the build dir
   find "${pkgdir}/usr/lib" -type f -name '*.prl' \
@@ -113,6 +108,19 @@ package() {
 
   # Symlinks for backwards compatibility
   for b in "${pkgdir}"/usr/bin/*; do
-    ln -s /usr/bin/$(basename $b) "${pkgdir}"/usr/bin/$(basename $b)-qt5
+    ln -s $(basename $b) "${pkgdir}"/usr/bin/$(basename $b)-qt5
   done
+}
+
+package_qt5-xcb-private-headers() {
+  pkgdesc='Private headers for Qt5 Xcb'
+
+  depends=("qt5-base=$pkgver")
+  optdepends=()
+  groups=()
+  conflicts=()
+
+  cd ${_pkgfqn}
+  install -d -m755 "$pkgdir"/usr/include/qtxcb-private
+  cp -r src/plugins/platforms/xcb/*.h "$pkgdir"/usr/include/qtxcb-private/
 }

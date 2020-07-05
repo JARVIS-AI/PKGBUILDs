@@ -1,4 +1,3 @@
-# $Id$
 # Maintainer: Tom K <tomk@runbox.com>
 
 # ALARM: Kevin Mihelich <kevin@archlinuxarm.org>
@@ -6,15 +5,15 @@
 
 pkgname=gnu-netcat
 pkgver=0.7.1
-pkgrel=6
+pkgrel=8
 pkgdesc="GNU rewrite of netcat, the network piping application"
 depends=('glibc' 'texinfo')
-arch=('i686' 'x86_64')
+arch=('x86_64')
 url="http://netcat.sourceforge.net/"
 license=('GPL')
 replaces=('netcat')
 provides=('netcat')
-source=("http://downloads.sourceforge.net/sourceforge/netcat/netcat-$pkgver.tar.bz2"
+source=("https://downloads.sourceforge.net/sourceforge/netcat/netcat-$pkgver.tar.bz2"
         'gnu-netcat-flagcount.patch')
 md5sums=('0a29eff1736ddb5effd0b1ec1f6fe0ef'
          'fccdd10bf84b18ba4e1d9ef2677e038c')

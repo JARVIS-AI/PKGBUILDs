@@ -1,19 +1,18 @@
-# $Id$
 # Maintainer: Antonio Rojas <arojas@archlinux.org>
 
 # ALARM: Kevin Mihelich <kevin@archlinuxarm.org>
 #  - removed sse2 configure/cflags options
 
 pkgname=gf2x
-pkgver=1.1
-pkgrel=2
+pkgver=1.3.0
+pkgrel=1
 pkgdesc="A library for multiplying polynomials over the binary field"
-arch=(i686 x86_64)
-url="http://gforge.inria.fr/projects/gf2x/"
+arch=(x86_64)
+url="https://gforge.inria.fr/projects/gf2x/"
 license=(GPL LGPL)
 depends=(glibc)
-source=("http://gforge.inria.fr/frs/download.php/30873/gf2x-1.1.tar.gz")
-md5sums=('d9ce3a0d8cb6be50e3a1ff6d90be669f')
+source=("https://gforge.inria.fr/frs/download.php/38243/gf2x-$pkgver.tar.gz")
+sha256sums=('9472cd651972a1de38e3c4c47697a86e0ecf19d7d33454d4bc2a62bc85841b59')
 
 build() {
   cd $pkgname-$pkgver

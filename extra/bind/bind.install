@@ -1,13 +1,10 @@
-post_install() {
-  systemd-sysusers bind.conf
-  systemd-tmpfiles --create bind.conf
-
-  # create an rndc.key if it doesn't already exist
-  if [[ ! -s etc/rndc.key ]]; then
-    rndc-confgen -r /dev/urandom -b 256 | head -n 5 >>etc/rndc.key
-    chown root:named etc/rndc.key
-    chmod 640 etc/rndc.key
-  fi
+## arg 1:  the new package version
+## arg 2:  the old package version
+post_upgrade() {
+  (( $(vercmp "$2" '9.14.8-2') > 0 )) || cat <<EOF
+==> Switched to geoip2 databases.
+==> Remember to update your configuration if you use geoip features.
+EOF
 }
 
-# vim:set ts=2 sw=2 et:
+# vim:set ts=2 sw=2 ft=sh et:

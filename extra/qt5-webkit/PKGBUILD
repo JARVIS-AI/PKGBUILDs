@@ -1,62 +1,56 @@
-# $Id: PKGBUILD 240297 2015-06-03 10:22:03Z fyan $
 # Maintainer: Felix Yan <felixonmars@archlinux.org>
+# Maintainer: Antonio Rojas <arojas@archlinux.org>
 # Contributor: Andrea Scarpino <andrea@archlinux.org>
 
 # ALARM: Kevin Mihelich <kevin@archlinuxarm.org>
-#  - icu makedepend
-#  - patch for soft-float armv5
-#  - patch for AArch64 support in qtwebkit
+#  - patch to link with libatomic on v5/v6
+#  - disable jit on v5/v6
+#  - use tarball source
+
+highmem=1
 
 pkgname=qt5-webkit
-_qtver=5.7.1
-pkgver=${_qtver/-/}
-pkgrel=1
-arch=('i686' 'x86_64')
-url='http://qt-project.org/'
-license=('GPL3' 'LGPL3' 'FDL' 'custom')
+_pkgver=5.212.0-alpha4
+pkgver=${_pkgver/-/}
+pkgrel=6
+arch=(x86_64)
+url='https://www.qt.io'
+license=(GPL3 LGPL3 FDL custom)
 pkgdesc='Classes for a WebKit2 based implementation and a new QML API'
-depends=('qt5-location' 'qt5-sensors' 'qt5-webchannel' 'libwebp' 'libxslt' 'libxcomposite' 'gst-plugins-base')
-makedepends=('ruby' 'gperf' 'python2' 'icu' 'qt5-doc' 'qt5-tools')
+source=("https://github.com/qtwebkit/qtwebkit/releases/download/qtwebkit-$_pkgver/qtwebkit-$_pkgver.tar.xz"
+        'atomic.patch')
+depends=(qt5-location qt5-sensors qt5-webchannel libwebp libxslt libxcomposite gst-plugins-base hyphen woff2)
+makedepends=(cmake ruby gperf python qt5-doc qt5-tools)
 optdepends=('gst-plugins-good: Webm codec support')
-conflicts=('qt')
-groups=('qt' 'qt5')
-_pkgfqn="${pkgname/5-/}-opensource-src-${pkgver}"
-source=("http://download.qt.io/community_releases/${pkgver%.*}/${pkgver}/qtwebkit-opensource-src-${pkgver}.tar.xz"
-        qt5webkit-0002-Fix-QtWebKit-build-on-ARM-softfp.patch
-        0001-Add-ARM-64-support.patch)
-md5sums=('4fa8f47383ce36d59dcc36d701ce93cd'
-         'd55ad1f1c90725834b44eada5db4e401'
-         '47657bc1b3f51892d0cc88a271a8fa31')
+sha256sums=('9ca126da9273664dd23a3ccd0c9bebceb7bb534bddd743db31caf6a5a6d4a9e6'
+            '23fbd785daf116c71b3ce87d40860f0a6c56ab1065ee98ec41634626ca961129')
 
 prepare() {
   mkdir -p build
 
-# Hack to force python2
-  mkdir -p bin
-  ln -s /usr/bin/python2 bin/python
-
-# ARM fixes
-  cd ${_pkgfqn}
-  patch -p1 -i ../qt5webkit-0002-Fix-QtWebKit-build-on-ARM-softfp.patch
-  patch -p1 -i ../0001-Add-ARM-64-support.patch
+  if [[ $CARCH == "arm" || $CARCH == "armv6h" ]]; then
+    cd qtwebkit-$_pkgver
+    patch -p0 -i ../atomic.patch
+  fi
 }
 
 build() {
-  cd build  
+  cd build
 
-  export PATH="${srcdir}/bin:$PATH"
-  qmake ../${_pkgfqn}
+  [[ $CARCH == "arm" || $CARCH == "armv6h" ]] && CONFIG="-DENABLE_JIT=OFF"
+
+  cmake ../qtwebkit-$_pkgver \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DCMAKE_CXX_FLAGS="${CXXFLAGS} -DNDEBUG" \
+    -DPORT=Qt \
+    -DENABLE_TOOLS=OFF \
+    $CONFIG
   make
-  make docs
 }
 
 package() {
   cd build
-  make INSTALL_ROOT="$pkgdir" install install_docs
-
-  # Drop QMAKE_PRL_BUILD_DIR because reference the build dir
-  find "$pkgdir/usr/lib" -type f -name '*.prl' \
-    -exec sed -i -e '/^QMAKE_PRL_BUILD_DIR/d' {} \;
+  make DESTDIR="$pkgdir" install
 
   install -d "$pkgdir"/usr/share/licenses
   ln -s /usr/share/licenses/qt5-base "$pkgdir"/usr/share/licenses/${pkgname}

@@ -1,39 +1,40 @@
-# $Id$
-# Maintainer: Stéphane Gaudreault <stephane@archlinux.org>
+# Maintainer: Felix Yan <felixonmars@archlinux.org>
+# Contributor: Stéphane Gaudreault <stephane@archlinux.org>
 # Contributor: Thomas Dziedzic < gostrc at gmail >
 # Contributor: Denis Martinez <deuns.martinez AT gmail.com>
+# Contributor: Bogdan Burlacu <bogdan.burlacu AT pm.me>
 
 # ALARM: Kevin Mihelich <kevin@archlinuxarm.org>
 #        Romain Reignier <rom.reignier AT gmail.com>
-# - add specfic CXXFLAGS for armv7h and aarch64
-
-buildarch=12
+# - add specfic CXXFLAGS for ARM
 
 pkgname=intel-tbb
-pkgver=2017_20161128
-_tag=tbb${pkgver/\./}oss
-_file=${_tag}_src.tgz
+pkgver=2020.2
 pkgrel=1
 pkgdesc='High level abstract threading library'
-arch=(i686 x86_64)
-url='http://www.threadingbuildingblocks.org/'
+arch=(x86_64)
+url='https://www.threadingbuildingblocks.org/'
 license=(GPL)
 depends=(gcc-libs)
-source=(http://threadingbuildingblocks.org/sites/default/files/software_releases/source/$_file)
-sha1sums=('2c451a5bcf6fc31487b98b4b29651c369874277c')
+makedepends=(cmake inetutils)
+source=($pkgname-$pkgver.tar.gz::https://github.com/intel/tbb/archive/v$pkgver.tar.gz)
+sha256sums=('4804320e1e6cbe3a5421997b52199e3c1a3829b2ecb6489641da4b8e32faf500')
 
 build() {
-  cd $_tag
-  export CXXFLAGS+=" -fno-lifetime-dse" # FS#49898
-  [[ $CARCH == "armv7h" ]] && CXXFLAGS+=" -DTBB_USE_GCC_BUILTINS=1 -D__TBB_64BIT_ATOMICS=0"
+  cd oneTBB-$pkgver
+  [[ $CARCH != "aarch64" ]] && CXXFLAGS+=" -DTBB_USE_GCC_BUILTINS=1 -D__TBB_64BIT_ATOMICS=0"
   [[ $CARCH == "aarch64" ]] && CXXFLAGS+=" -DTBB_USE_GCC_BUILTINS=1 -D__TBB_64BIT_ATOMICS=1"
   make
 }
 
 package() {
-  cd $_tag
+  cd oneTBB-$pkgver
   install -d "$pkgdir"/usr/lib
   install -m755 build/linux_*/*.so* "$pkgdir"/usr/lib
   install -d "$pkgdir"/usr/include
   cp -a include/tbb "$pkgdir"/usr/include
+  cmake \
+    -DINSTALL_DIR="$pkgdir"/usr/lib/cmake/TBB \
+    -DSYSTEM_NAME=Linux -DTBB_VERSION_FILE="$pkgdir"/usr/include/tbb/tbb_stddef.h \
+    -P cmake/tbb_config_installer.cmake
 }

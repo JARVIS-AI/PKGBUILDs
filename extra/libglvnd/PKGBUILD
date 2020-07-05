@@ -1,59 +1,34 @@
-# $Id: PKGBUILD 249779 2015-10-27 00:47:25Z eric $
 # Maintainer: Felix Yan <felixonmars@archlinux.org>
 
 # ALARM: Kevin Mihelich <kevin@archlinuxarm.org>
-#  - disable assembly on !armv7h
+#  - disable assembly
 
 pkgname=libglvnd
-pkgver=0.1.1.20161028
-_commit=470fc824a38521a52707c6c0f59d827aa5e0f45a
+pkgver=1.3.2
 pkgrel=1
 pkgdesc="The GL Vendor-Neutral Dispatch library"
-arch=('i686' 'x86_64')
+arch=('x86_64')
 url="https://github.com/NVIDIA/libglvnd"
 license=('custom:BSD-like')
-depends=('libxext')
-makedepends=('libx11' 'glproto' 'git' 'python')
-#source=("git+https://github.com/NVIDIA/libglvnd.git#tag=v$pkgver"
-source=("git+https://github.com/NVIDIA/libglvnd.git#commit=$_commit"
-        LICENSE
-        https://patch-diff.githubusercontent.com/raw/NVIDIA/libglvnd/pull/110.patch
-        https://patch-diff.githubusercontent.com/raw/NVIDIA/libglvnd/pull/97.patch
-        0001-remove-unused-variable.patch)
-sha1sums=('SKIP'
-          'c88e07f333fcf8dcdbef370b85372b4d88ad8a66'
-          '048e89dbdd0a6ca33441a6273208e4126d9828fc'
-          '48fac1b1248f1a6766ebae66432269c5147b5815'
-          '39eb9a4d3cb9484e9fa27c234c783e83c2569103')
-
-prepare() {
-  cd $pkgname
-  # FS#51527
-  patch -p1 -i ../97.patch
-  patch -p1 -i ../110.patch
-  patch -p1 -i ../0001-remove-unused-variable.patch
-}
+makedepends=('libxext' 'libx11' 'xorgproto' 'python' 'meson')
+provides=('libgl' 'libegl' 'libgles')
+source=("$pkgname-$pkgver.tar.gz::https://gitlab.freedesktop.org/glvnd/libglvnd/-/archive/v${pkgver}/libglvnd-v${pkgver}.tar.gz"
+        LICENSE)
+sha512sums=('01db155f02fa21f4217ee5ca6dd8eeed3d20672c8aaa43475bd112921716ee8d4124e01f80a89587ddc8ebfa4a552c5e02d70726222702cce1601a6e6f4bc22b'
+            'bf0f4a7e04220a407400f89226ecc1f798cc43035f2538cc8860e5088e1f84140baf0d4b0b28f66e4b802d4d6925769a1297c24e1ba39c1c093902b2931781a5')
 
 build() {
-  cd $pkgname
-  ./autogen.sh
+  arch-meson $pkgname-v$pkgver build \
+    -D gles1=false -D asm=disabled
 
-  [[ $CARCH != "armv7h" ]] && CONFIG="--disable-asm"
-
-  ./configure --prefix=/usr $CONFIG
-  make
+  ninja -C build
 }
 
 package() {
-  cd $pkgname
-  make DESTDIR="${pkgdir}" install
+  # libglvnd needs mesa for indirect rendering
+  depends=('libxext' 'mesa' 'opengl-driver')
 
-  # For compatibility with older nvidia drivers for bumblebee
-  # Symlinks to /usr/lib will be in nvidia-libgl
-  mkdir "$pkgdir/usr/lib/nvidia"
-  for _lib in libGL.so libGLESv1_CM.so libGLESv2.so libEGL.so; do
-    mv "$pkgdir"/usr/lib/$_lib* "$pkgdir"/usr/lib/nvidia/
-  done
-
-  install -Dm644 ../LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  DESTDIR="$pkgdir" ninja -C build install
+  
+  install -Dm644 LICENSE "$pkgdir"/usr/share/licenses/$pkgname/LICENSE
 }

@@ -1,38 +1,37 @@
+# Maintainer: Brad Fanella <cesura@archlinux.org>
 # Contributor: Martin Wimpress <code@flexion.org>
 
 # ALARM: Kevin Mihelich <kevin@archlinuxarm.org>
 #  - drop dependency on libxnvctrl (nvidia-settings)
 
-_ver=1.16
-_pkgbase=mate-sensors-applet
-pkgname=(${_pkgbase})
-pkgver=${_ver}.0
+pkgname=mate-sensors-applet
+pkgver=1.24.0
 pkgrel=1
-pkgdesc="A MATE Panel applet to display readings from hardware sensors, including CPU temperature, fan speeds and voltage readings (GTK2 version)"
-url="http://mate-desktop.org"
-arch=('i686' 'x86_64')
+pkgdesc="A MATE Panel applet to display readings from hardware sensors, including CPU temperature, fan speeds and voltage readings"
+url="https://mate-desktop.org"
+arch=('x86_64')
 license=('GPL')
-depends=('libatasmart' 'libnotify' 'lm_sensors' 'mate-panel')
-makedepends=('docbook-xsl' 'intltool' 'itstool')
+depends=('libatasmart' 'libnotify' 'lm_sensors' 'mate-panel' 'gettext')
+makedepends=('docbook-xsl' 'itstool')
 groups=('mate-extra')
-conflicts=("${_pkgbase}-gtk3")
-source=("http://pub.mate-desktop.org/releases/${_ver}/${_pkgbase}-${pkgver}.tar.xz")
-sha1sums=('71f7f75946ae0a0f3b266f79dcabc58a34a0ecba')
+conflicts=('mate-sensors-applet-gtk3')
+replaces=('mate-sensors-applet-gtk3')
+source=("https://pub.mate-desktop.org/releases/${pkgver%.*}/${pkgname}-${pkgver}.tar.xz")
+sha256sums=('5a604dd7ede7f5889817d936486b83b720ad500f097154635623ad3ee47ff2c7')
 
 build() {
-    cd "${srcdir}/${_pkgbase}-${pkgver}"
-    ./configure \
-        --prefix=/usr \
-        --libexecdir=/usr/lib/${_pkgbase} \
-        --with-gtk=2.0
+	cd "${pkgname}-${pkgver}"
+    	./configure \
+        	--prefix=/usr \
+        	--libexecdir=/usr/lib/${pkgname}
 
-    #https://bugzilla.gnome.org/show_bug.cgi?id=656231
-    sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
+    	#https://bugzilla.gnome.org/show_bug.cgi?id=656231
+    	sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
 
-  make
+  	make
 }
 
 package() {
-    cd "${srcdir}/${_pkgbase}-${pkgver}"
-    make DESTDIR="${pkgdir}" install
+    	cd "${pkgname}-${pkgver}"
+    	make DESTDIR="${pkgdir}" install
 }

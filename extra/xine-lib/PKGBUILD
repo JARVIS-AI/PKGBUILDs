@@ -1,20 +1,20 @@
-# $Id$
 # Maintainer: Eric Bélanger <eric@archlinux.org>
 
 # ALARM: Kevin Mihelich <kevin@archlinuxarm.org>
 #  - disabled vdpau
 
 pkgname=xine-lib
-pkgver=1.2.6
-pkgrel=11
-pkgdesc="A multimedia playback engine"
-arch=('i686' 'x86_64')
-url="http://www.xine-project.org"
+pkgver=1.2.10
+pkgrel=4
+pkgdesc="Multimedia playback engine"
+arch=('x86_64')
+url="https://www.xine-project.org"
 license=('LGPL' 'GPL')
-depends=('libxvmc' 'ffmpeg' 'libxinerama')
+depends=('libxvmc' 'ffmpeg' 'libxinerama' 'libnsl')
 makedepends=('wavpack' 'faad2' 'libmng' 'imagemagick' 'mesa' 'libmodplug'
              'vcdimager' 'jack' 'aalib' 'libdca' 'a52dec' 'libmad' 'libdvdnav'
-             'libmpcdec' 'libcaca' 'libbluray' 'gnome-vfs' 'glu' 'gdk-pixbuf2')
+             'libmpcdec' 'libcaca' 'libbluray' 'glu' 'gdk-pixbuf2'
+             'dav1d')
 optdepends=('imagemagick: for using the imagemagick plugin' \
             'jack: for using the jack plugin' \
             'vcdimager: for using the vcd plugin' \
@@ -27,30 +27,26 @@ optdepends=('imagemagick: for using the imagemagick plugin' \
             'libdca: for using the dca plugin' \
             'a52dec: for using the a52 plugin' \
             'libmad: for using the mp3 plugin' \
+            'libdvdnav: for using the dvd plugin' \
             'libmpcdec: for using the musepack plugin' \
             'libcaca: for using the caca plugin' \
             'libbluray: for using the bluray plugin' \
-            'gnome-vfs: for using the gnome-vfs plugin' \
             'smbclient: for using the samba plugin' \
+            'dav1d: for using the dav1d decoder' \
             'gdk-pixbuf2: for using the gdk-pixbuf plugin')
-source=(http://downloads.sourceforge.net/sourceforge/xine/${pkgname}-${pkgver}.tar.xz xine-lib-ffmpeg3.patch xine-lib-xcb-1.12.patch)
-sha1sums=('ac929eef2b7bf5c27699bbed612b953a01fccba5'
-          'b4466616bb17142aef8aa1bb80fff67cd2d0d15d'
-          '890c8f044c0080bfb7d4b163061dd42621fc4df1')
-
-prepare() {
-  cd $pkgname-$pkgver
-# Fix build with ffmpeg 3.0 (Gentoo)
-  patch -p1 -i ../xine-lib-ffmpeg3.patch
-# Fix build with xcb 1.12 (Gentoo)
-  patch -p1 -i ../xine-lib-xcb-1.12.patch
-  autoreconf -vi
-}
+source=(https://downloads.sourceforge.net/project/xine/xine-lib/$pkgver/xine-lib-$pkgver.tar.xz)
+sha512sums=('1cbe033da606d67a0a59f19968b2fe1cb46eaeb32c4b4aca7b91125b7230e15bd36d1e3e39e48e6eda56e556018f9f9bf84acb0012d3dd634306e7110fdc4c5f')
+b2sums=('e1bc088814c951ff56e55b626fe1f6f34c3da744e716de369a68e6c82a5adc414b452675ad19a5f82500bade6795b54efd503de8ffe4f1e65b534317ca0a26af')
 
 build() {
   cd ${pkgname}-${pkgver}
-  ./configure --prefix=/usr --with-wavpack --disable-vdpau --with-external-dvdnav \
-    --disable-optimizations
+  CFLAGS+=" -fcommon"
+  ./configure \
+      --prefix=/usr \
+      --with-wavpack \
+      --disable-vdpau \
+      --with-external-dvdnav
+  sed -i -e 's/ -shared / -Wl,-O1,--as-needed\0/g' libtool
   make
 }
 

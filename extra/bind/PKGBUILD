@@ -1,4 +1,3 @@
-# $Id: PKGBUILD 113060 2014-06-12 10:51:06Z seblu $
 # Maintainer: Sébastien Luttringer
 # Contributor: Gaetan Bisson <bisson@archlinux.org>
 # Contributor: judd <jvinet@zeroflux.org>
@@ -6,68 +5,76 @@
 
 # ALARM: Kevin Mihelich <kevin@archlinuxarm.org>
 #  - !makeflags - bind build doesn't like concurrency
-#  - --disable-seccomp, not supported for ARM
+#  - build v6 as armv6kz
 
 pkgbase=bind
 pkgname=(bind bind-tools)
-_pkgver=9.11.0-P1
+_pkgver=9.16.4
 pkgver=${_pkgver//-/.}
-pkgrel=2
+pkgrel=1
 url='https://www.isc.org/software/bind/'
-license=('custom:ISC')
-arch=('i686' 'x86_64')
+license=('MPL2')
+arch=('x86_64')
 options=('!emptydirs' '!makeflags')
 makedepends=('libcap' 'libxml2' 'zlib' 'krb5' 'e2fsprogs' 'openssl' 'readline'
- 'idnkit' 'geoip' 'dnssec-anchors' 'python' 'json-c' 'python-ply' 'libseccomp')
-validpgpkeys=('2B48A38AE1CF9886435F89EE45AC7857189CDBC5'
-              'ADBE9446286C794905F1E0756FA6EBC9911A4C02') #ISC, Inc
-source=("https://ftp.isc.org/isc/bind9/${_pkgver}/bind-${_pkgver}.tar.gz"{,.asc}
+  'libidn2' 'dnssec-anchors' 'python' 'json-c' 'python-ply' 'lmdb' 'zlib' 'icu'
+  'xz' 'libmaxminddb' 'libnsl' 'libuv')
+validpgpkeys=('AE3FAC796711EC59FC007AA474BB6B9A4CBB3D38') #ISC Code Signing Key 2019 – 2020 (codesign@isc.org)
+source=("https://ftp.isc.org/isc/bind9/${_pkgver}/bind-${_pkgver}.tar.xz"{,.asc}
         'tmpfiles.conf'
         'sysusers.conf'
         'named.conf'
         'named.service'
         'localhost.zone'
         'localhost.ip6.zone'
-        '127.0.0.zone'
-        'empty.zone')
-sha1sums=('e6fbbc0f0cceb58ad93e0568b86f7c0e015bbd5e'
-          'SKIP'
-          'c5a2bcd9b0f009ae71f3a03fbdbe012196962a11'
-          '9537f4835a1f736788d0733c7996a10db2d4eee4'
-          'c017aae379c32c7cb1aa1ad84776b83e3a5c139f'
-          'cb2e81b4cbf9efafb3e81e3752f0154e779cc7ec'
-          '6704303a6ed431a29b1d8fe7b12decd4d1f2f50f'
-          '52da8f1c0247a11b16daa4e03d920e8f09315cbe'
-          '9c33726088342207ad06d33b2c13408290a0c8ad'
-          '4f4457b310cbbeadca2272eced062a9c2b2b42fe')
+        '127.0.0.zone')
+sha256sums=('7522088d3daac8bcabaae37998178e09139ef5ccae6631cb1d8a625b770f370a'
+            'SKIP'
+            'f0423c4ee8495da487e07e9144bec1d25f46a0cd2dfa7cfd7a761ef15bfefc98'
+            '7c0acefcfcc3ae093550caed7ec90fe84bec8f7477459ffa7e71dda76bcbdb2c'
+            'e08a01d41b18bdb771d534daca99642314939aafdb088e5cfcf0ef2d33f8e7eb'
+            '3f0f8db0a1deae270dd166b4750be7c1041b4b44891176f35a8df7dd55d24d34'
+            '0011708e516128647dd25b59b6ebc465f36e85bbe0a8fbdc3eb04b7f28c2197f'
+            'c06fc270e32a843c8b6d86335a2ec607d405dfba6875de8d8a9abde39a9e2c17'
+            'b88fd2b99e7d42d414b329b814b9ff3304fa0ef9c67df81bde235bbfa0f3a3b8')
 
 prepare() {
-  msg2 'Getting a fresh version of root DNS'
-  # no more using source array, lack of versioning.
-  curl -o root.hint http://www.internic.net/zones/named.root
-  [[ -s root.hint ]]
+  cd bind-$_pkgver
+  # apply patch from the source array (should be a pacman feature)
+  local src
+  for src in "${source[@]}"; do
+    src="${src%%::*}"
+    src="${src##*/}"
+    [[ $src = *.patch ]] || continue
+    echo "Applying patch $src..."
+    patch -Np1 < "../$src"
+  done
 }
 
 build() {
   cd bind-$_pkgver
-  export CFLAGS+=' -DDIG_SIGCHASE'
+  export CFLAGS
+  # support to chase DNSSEC signature chains
+  CFLAGS+=' -DDIG_SIGCHASE'
+  # compile with gcc10, https://gcc.gnu.org/gcc-10/porting_to.html
+  CFLAGS+=' -fcommon'
+  [[ $CARCH == "armv6h" ]] && CFLAGS+=" -march=armv6zk"
   ./configure \
     --prefix=/usr \
     --sysconfdir=/etc \
     --sbindir=/usr/bin \
     --localstatedir=/var \
     --disable-static \
-    --enable-ipv6 \
-    --enable-filter-aaaa \
     --enable-fixed-rrset \
-    --disable-seccomp \
     --enable-full-report \
+    --enable-dnsrps \
     --with-python=/usr/bin/python \
-    --with-geoip \
-    --with-idn \
+    --with-maxminddb \
     --with-openssl \
-    --with-libjson \
+    --with-libidn2 \
+    --with-json-c \
     --with-libxml2 \
+    --with-lmdb \
     --with-libtool
   make
 }
@@ -75,18 +82,18 @@ build() {
 package_bind() {
   pkgdesc='The ISC DNS Server'
   provides=('dns-server')
-  depends=('glibc' 'libxml2' 'libcap' 'libseccomp' 'openssl' 'geoip' 'json-c'
-           'bind-tools')
+  depends=('glibc' 'libxml2' 'libcap' 'openssl' 'json-c' 'bind-tools' 'zlib'
+           'lmdb' 'libmaxminddb')
   backup=('etc/named.conf'
           'var/named/127.0.0.zone'
           'var/named/localhost.zone'
-          'var/named/localhost.ip6.zone'
-          'var/named/empty.zone')
-  install=$pkgname.install
+          'var/named/localhost.ip6.zone')
+  install=bind.install
 
   cd "bind-$_pkgver"
-  install -Dm644 COPYRIGHT "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
-  for _d in bin/{check,confgen,named,rndc}; do
+  install -dm755 "$pkgdir/usr/share/licenses/$pkgname/"
+  install -Dm644 LICENSE COPYRIGHT "$pkgdir/usr/share/licenses/$pkgname/"
+  for _d in bin/{check,named,rndc,plugins}; do
     (cd "$_d" && make DESTDIR="$pkgdir" install)
   done
 
@@ -98,18 +105,16 @@ package_bind() {
   install -D -m640 -o 0 -g 40 named.conf "$pkgdir/etc/named.conf"
 
   install -d -m770 -o 0 -g 40 "$pkgdir/var/named"
-  install    -m640 -o 0 -g 40 root.hint "$pkgdir/var/named"
-  install    -m640 -o 0 -g 40 localhost.zone "$pkgdir/var/named"
-  install    -m640 -o 0 -g 40 localhost.ip6.zone "$pkgdir/var/named"
-  install    -m640 -o 0 -g 40 127.0.0.zone "$pkgdir/var/named"
-  install    -m640 -o 0 -g 40 empty.zone "$pkgdir/var/named"
+  install -m640 -o 0 -g 40 localhost.zone "$pkgdir/var/named"
+  install -m640 -o 0 -g 40 localhost.ip6.zone "$pkgdir/var/named"
+  install -m640 -o 0 -g 40 127.0.0.zone "$pkgdir/var/named"
 }
 
 package_bind-tools() {
   pkgdesc='The ISC DNS tools'
-  depends=('glibc' 'libcap' 'libseccomp' 'libxml2' 'zlib' 'krb5' 'e2fsprogs'
-           'openssl' 'readline' 'geoip' 'idnkit' 'dnssec-anchors' 'json-c')
-  optdepends=('python: for python scripts')
+  depends=('glibc' 'libcap' 'libxml2' 'zlib' 'krb5' 'e2fsprogs' 'python' 'bash'
+           'openssl' 'readline' 'libidn2' 'dnssec-anchors' 'json-c' 'lmdb' 'xz'
+           'icu' 'python-ply' 'libmaxminddb' 'libnsl' 'libuv')
   conflicts=('dnsutils')
   replaces=('dnsutils' 'host')
   provides=("dnsutils=$pkgver")
@@ -118,7 +123,7 @@ package_bind-tools() {
   install -Dm644 COPYRIGHT "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
   make DESTDIR="$pkgdir" SUBDIRS="" install
   (cd lib && make DESTDIR="$pkgdir" install)
-  for _d in bin/{dig,dnssec,delv,nsupdate,python,tools}; do
+  for _d in bin/{confgen,dig,dnssec,delv,nsupdate,python,tools}; do
     (cd "$_d" && make DESTDIR="$pkgdir" install)
   done
 }

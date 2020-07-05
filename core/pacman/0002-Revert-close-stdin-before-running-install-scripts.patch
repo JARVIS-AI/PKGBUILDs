@@ -1,4 +1,4 @@
-From b6d6499c598caaa50f492c6558b649fcd608a1f6 Mon Sep 17 00:00:00 2001
+From 544d96b66768a77e838787807235bacb62f31c4b Mon Sep 17 00:00:00 2001
 From: Kevin Mihelich <kevin@archlinuxarm.org>
 Date: Sat, 30 Jan 2016 17:19:03 -0700
 Subject: [PATCH 2/3] Revert "close stdin before running install scripts"
@@ -16,17 +16,17 @@ Signed-off-by: Kevin Mihelich <kevin@archlinuxarm.org>
  1 file changed, 1 deletion(-)
 
 diff --git a/lib/libalpm/util.c b/lib/libalpm/util.c
-index 4a4847d..5e74462 100644
+index d33eef2a..e08cb923 100644
 --- a/lib/libalpm/util.c
 +++ b/lib/libalpm/util.c
-@@ -602,7 +602,6 @@ int _alpm_run_chroot(alpm_handle_t *handle, const char *cmd, char *const argv[],
+@@ -627,7 +627,6 @@ int _alpm_run_chroot(alpm_handle_t *handle, const char *cmd, char *const argv[],
  
  	if(pid == 0) {
  		/* this code runs for the child only (the actual chroot/exec) */
 -		close(0);
  		close(1);
  		close(2);
- 		while(dup2(child2parent_pipefd[1], 1) == -1 && errno == EINTR);
+ 		while(dup2(child2parent_pipefd[HEAD], 1) == -1 && errno == EINTR);
 -- 
-2.7.1
+2.22.0
 

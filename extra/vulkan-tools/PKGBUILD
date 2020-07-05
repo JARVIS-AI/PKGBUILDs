@@ -1,86 +1,47 @@
-# $Id$
 # Maintainer: Laurent Carlier <lordheavym@gmail.com>
 
 # ALARM: Kevin Mihelich <kevin@archlinuxarm.org>
-#  - use suffix=32 in packaging for 32-bit ARM architectures
+#  - cmake with -DBUILD_CUBE=OFF
 
-pkgbase=vulkan-tools
-pkgname=(vulkan-trace vulkan-extra-layers)
-pkgver=1.0.37.0
+pkgname=vulkan-tools
+pkgver=1.2.141.0
 pkgrel=1
-arch=(i686 x86_64)
-url="http://lunarg.com/"
+arch=(x86_64)
+url="https://www.khronos.org/vulkan/"
+pkgdesc="Vulkan Utilities and Tools"
 license=('custom')
-depends=()
-makedepends=(git cmake wget python-lxml libxcb imagemagick qt5-svg)
-source=("vulkanTools-sdk-${pkgver}::https://github.com/LunarG/VulkanTools/archive/sdk-${pkgver}.tar.gz")
-sha256sums=('4f072cd7afaaf3343daf1a397286cb765da8627f198ba972ef7b73b6a3f707f9')
+depends=(gcc-libs libxcb vulkan-icd-loader)
+makedepends=(git cmake python vulkan-headers libx11 wayland)
+source=("https://github.com/KhronosGroup/Vulkan-Tools/archive/sdk-${pkgver}.tar.gz")
+sha256sums=('bbadfc2fa72e55f1dcdbce5e6ff010ec3b1243cbf652c074de8c2a5e98b426ce')
 
 build() {
-  cd "${srcdir}/VulkanTools-sdk-${pkgver}"
-
-  ./update_external_sources.sh --glslang --spirv-tools
+  cd "${srcdir}"/Vulkan-Tools*
 
   rm -rf build ; mkdir build ; cd build
   cmake \
     -DCMAKE_INSTALL_PREFIX=/usr \
     -DCMAKE_INSTALL_SYSCONFDIR=/etc \
-    -DINCLUDE_INSTALL_DIR=/usr/include \
-    -DLIB_INSTALL_DIR=/usr/lib \
     -DCMAKE_INSTALL_DATADIR=/usr/share \
     -DCMAKE_SKIP_RPATH=True \
     -DBUILD_WSI_XCB_SUPPORT=On \
     -DBUILD_WSI_XLIB_SUPPORT=On \
     -DBUILD_WSI_WAYLAND_SUPPORT=On \
-    -DBUILD_WSI_MIR_SUPPORT=Off \
+    -DBUILD_CUBE=OFF \
+    -DBUILD_VULKANINFO=ON \
     -DBUILD_ICD=OFF \
-    -DBUILD_TESTS=OFF \
-    -DBUILD_DEMOS=OFF \
-    -DBUILD_VIA=OFF \
     -DCMAKE_BUILD_TYPE=Release \
     ..
   make
 }
 
-package_vulkan-trace() {
-  pkgdesc="Vulkan tracing and replaying tools"
-  depends=(vulkan-icd-loader qt5-svg)
+package() {
   groups=('vulkan-devel')
   
-  cd "${srcdir}/VulkanTools-sdk-${pkgver}"
+  cd "${srcdir}"/Vulkan-Tools*/build
   
-  [[ $CARCH == i686 || $CARCH == arm || $CARCH == armv6h || $CARCH == armv7h ]] && suffix=32
+  make DESTDIR="${pkgdir}" install
 
-  install -dm755 ${pkgdir}/usr/{bin,lib}
   install -dm755 ${pkgdir}/usr/share/licenses/${pkgname}
-  
-  install -m755 build/vktrace/{vkreplay,vktrace}${suffix} ${pkgdir}/usr/bin/
-  install -m755 build/vktrace/vktraceviewer${suffix} ${pkgdir}/usr/bin/
-  install -m755 build/vktrace/libVkLayer_vktrace_layer${suffix}.so ${pkgdir}/usr/lib/
- 
-  install -m644 LICENSE.txt "${pkgdir}"/usr/share/licenses/${pkgname}/
-}
-
-package_vulkan-extra-layers() {
-  pkgdesc="Extra layers for Vulkan development"
-  depends=(vulkan-validation-layers)
-  groups=('vulkan-devel')
-  
-  cd "${srcdir}/VulkanTools-sdk-${pkgver}"
-
-  install -dm755 ${pkgdir}/usr/lib
-  install -dm755 ${pkgdir}/usr/share/licenses/${pkgname}
-  install -dm755 ${pkgdir}/usr/share/vulkan/explicit_layer.d
- 
-  install -m644 build/layersvt/*.so ${pkgdir}/usr/lib
-
-  # fix library paths  
-  for i in layersvt/linux/*.json ; do 
-    sed 's@./@@' $i > ${pkgdir}/usr/share/vulkan/explicit_layer.d/$(basename $i)
-  done
-
-  # this json file is really broken! see FS#50575
-  rm -v ${pkgdir}/usr/share/vulkan/explicit_layer.d/VkLayer_basic_implicit.json
-
-  install -m644 LICENSE.txt "${pkgdir}"/usr/share/licenses/${pkgname}/
+  install -m644 ../LICENSE.txt "${pkgdir}"/usr/share/licenses/${pkgname}/
 }

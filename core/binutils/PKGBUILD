@@ -1,40 +1,42 @@
-# $Id: PKGBUILD 145910 2012-01-04 01:24:50Z allan $
-# Maintainer: Allan McRae <allan@archlinux.org>
+# Maintainer:  Bartłomiej Piotrowski <bpiotrowski@archlinux.org>
+# Contributor: Allan McRae <allan@archlinux.org>
 
 # toolchain build order: linux-api-headers->glibc->binutils->gcc->binutils->glibc
 
-# build from head of release branch as bug fix releases are rare
-
 # ALARM: Kevin Mihelich <kevin@archlinuxarm.org>
-# - Added a CONFIGFLAG for ARM, defining our build hosts
-# - --disable-sim, files provided by gdb
-# - Disabled make check, too processor/ram intensive, blows up
+#  - Added a CONFIGFLAG for ARM, defining our build hosts
+#  - --disable-sim, files provided by gdb
 
 noautobuild=1
 
 pkgname=binutils
-pkgver=2.27
-pkgrel=1
-_commit=2870b1ba
-pkgdesc="A set of programs to assemble and manipulate binary and object files"
-arch=('i686' 'x86_64')
-url="http://www.gnu.org/software/binutils/"
-license=('GPL')
-groups=('base-devel')
-depends=('glibc>=2.24' 'zlib')
-makedepends=('git')
-checkdepends=('dejagnu' 'bc')
-options=('staticlibs' '!distcc' '!ccache')
-source=(git://sourceware.org/git/binutils-gdb.git#commit=${_commit})
-md5sums=('SKIP')
+pkgver=2.34
+pkgrel=5
+pkgdesc='A set of programs to assemble and manipulate binary and object files'
+arch=(x86_64)
+url='https://www.gnu.org/software/binutils/'
+license=(GPL)
+groups=(base-devel)
+depends=(glibc zlib elfutils)
+makedepends=(elfutils git)
+options=(staticlibs !distcc !ccache)
+_commit=cb5f6a3e146cc70bc2d864989386df80acec5d3e
+source=(git+https://sourceware.org/git/binutils-gdb.git#commit=$_commit)
+#source=(https://ftp.gnu.org/gnu/binutils/binutils-$pkgver.tar.xz{,.sig})
+sha256sums=('SKIP')
+validpgpkeys=(3A24BC1E8FB409FA9F14371813FCEF89DD9E3C4F)
 
 prepare() {
+  [[ ! -d binutils-gdb ]] && ln -s binutils-$pkgver binutils-gdb
+  mkdir -p binutils-build
+
   cd binutils-gdb
+
+  # Turn off development mode (-Werror, gas run-time checks, date in sonames)
+  sed -i '/^development=/s/true/false/' bfd/development.sh
 
   # hack! - libiberty configure tests for header files using "$CPP $CPPFLAGS"
   sed -i "/ac_cpp=/s/\$CPPFLAGS/\$CPPFLAGS -O2/" libiberty/configure
-
-  mkdir ${srcdir}/binutils-build
 }
 
 build() {
@@ -46,23 +48,33 @@ build() {
   [[ $CARCH == "armv7h" ]] && CONFIGFLAG="--host=armv7l-unknown-linux-gnueabihf --build=armv7l-unknown-linux-gnueabihf"
   [[ $CARCH == "aarch64" ]] && CONFIGFLAG="--host=aarch64-unknown-linux-gnu --build=aarch64-unknown-linux-gnu"
 
-  ../binutils-gdb/configure --prefix=/usr \
+  "$srcdir/binutils-gdb/configure" \
+    --prefix=/usr \
     --with-lib-path=/usr/lib:/usr/local/lib \
     --with-bugurl=https://github.com/archlinuxarm/PKGBUILDs/issues \
-    --enable-threads --enable-shared --with-pic \
-    --enable-ld=default --enable-gold --enable-plugins \
     --enable-deterministic-archives \
-    --disable-werror --disable-gdb --disable-sim $CONFIGFLAG
+    --enable-gold \
+    --enable-ld=default \
+    --enable-lto \
+    --enable-plugins \
+    --enable-relro \
+    --enable-shared \
+    --enable-threads \
+    --disable-gdb \
+    --disable-werror \
+    --with-debuginfod \
+    --with-pic \
+    --with-system-zlib \
+    --disable-sim \
+    $CONFIGFLAG
 
-  # check the host environment and makes sure all the necessary tools are available
   make configure-host
-
   make tooldir=/usr
 }
 
 check() {
   cd binutils-build
-  
+
   # unset LDFLAGS as testsuite makes assumptions about which ones are active
   # ignore failures in gold testsuite...
   make -k LDFLAGS="" check || true
@@ -70,13 +82,13 @@ check() {
 
 package() {
   cd binutils-build
-  make prefix=${pkgdir}/usr tooldir=${pkgdir}/usr install
+  make prefix="$pkgdir/usr" tooldir="$pkgdir/usr" install
 
   # Remove unwanted files
-  rm -f ${pkgdir}/usr/share/man/man1/{dlltool,nlmconv,windres,windmc}*
+  rm -f "$pkgdir"/usr/share/man/man1/{dlltool,nlmconv,windres,windmc}*
 
   # No shared linking to these files outside binutils
-  rm -f ${pkgdir}/usr/lib/lib{bfd,opcodes}.so
-  echo "INPUT ( /usr/lib/libbfd.a -liberty -lz -ldl )" > "$pkgdir"/usr/lib/libbfd.so
-  echo "INPUT ( /usr/lib/libopcodes.a -lbfd )" > "$pkgdir"/usr/lib/libopcodes.so
+  rm -f "$pkgdir"/usr/lib/lib{bfd,opcodes}.so
+  echo 'INPUT( /usr/lib/libbfd.a -liberty -lz -ldl )' > "$pkgdir/usr/lib/libbfd.so"
+  echo 'INPUT( /usr/lib/libopcodes.a -lbfd )' > "$pkgdir/usr/lib/libopcodes.so"
 }

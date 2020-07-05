@@ -1,21 +1,23 @@
-# Maintainer: Jens Staal <staal1978@gmail.com>
+# Maintainer:  Sergej Pupykin <arch+pub@sergej.pp.ru>
+# Maintainer:  Eli Schwartz <eschwartz@archlinux.org>
+# Contributor: Jens Staal <staal1978@gmail.com>
 
 # ALARM: Kevin Mihelich <kevin@archlinuxarm.org>
 #  - ensure ARCH is defined as "arm" for v6 and v7
 
 pkgname=kernel-headers-musl
-pkgver=3.12.6_5
-pkgrel=1.1
+pkgver=4.19.88
+pkgrel=1
 pkgdesc="Linux kernel headers sanitized for use with musl libc"
-arch=('i686' 'x86_64')
+arch=('x86_64')
 url="https://github.com/sabotage-linux/kernel-headers"
 license=('LGPL')
 depends=('musl')
 source=("$pkgname-$pkgver.tar.gz::https://github.com/sabotage-linux/kernel-headers/archive/v${pkgver/_/-}.tar.gz")
-md5sums=('2fe2d8053716759e42f182fbc75424e8')
+sha512sums=('db0239c40399c89cc250b9f1f53b7ec4eb119fde6b25c503aef7e88b80694df3a5e89196a22e66376731764bac83d9120794ee6c601a95b824f1ab770cb45a61')
 
 build() {
-  cd $srcdir/kernel-headers-${pkgver/_/-}
+  cd "$srcdir"/kernel-headers-${pkgver/_/-}
   _CARCH=$CARCH
   [ $CARCH == "i686" ] && _CARCH=x86
   [ $CARCH == "armv7h" -o $CARCH == "armv6h" ] && _CARCH=arm
@@ -23,9 +25,9 @@ build() {
 }
 
 package() {
-  cd $srcdir/kernel-headers-${pkgver/_/-}
+  cd "$srcdir"/kernel-headers-${pkgver/_/-}
   _CARCH=$CARCH
   [ $CARCH == "i686" ] && _CARCH=x86
   [ $CARCH == "armv7h" -o $CARCH == "armv6h" ] && _CARCH=arm
-  make ARCH=${_CARCH} prefix=/usr/lib/musl DESTDIR=$pkgdir install
+  make ARCH=${_CARCH} prefix=/usr/lib/musl DESTDIR="$pkgdir" install
 }

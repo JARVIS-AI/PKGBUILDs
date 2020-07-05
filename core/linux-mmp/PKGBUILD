@@ -7,15 +7,15 @@ pkgbase=linux-mmp
 _srcname=linux-3.18
 _kernelname=${pkgbase#linux}
 _desc="Marvell PXA168/MMP platforms"
-pkgver=3.18.45
-pkgrel=2
+pkgver=3.18.140
+pkgrel=1
 arch=('arm')
 url="https://github.com/Marvell-Semi/PXA168_kernel/tree/gplugd-dev"
 license=('GPL2')
 makedepends=('xmlto' 'docbook-xsl' 'kmod' 'inetutils' 'bc' 'git')
 options=('!strip')
-source=("http://www.kernel.org/pub/linux/kernel/v3.x/${_srcname}.tar.xz"
-        "http://www.kernel.org/pub/linux/kernel/v3.x/patch-${pkgver}.xz"
+source=("https://cdn.kernel.org/pub/linux/kernel/v3.x/${_srcname}.tar.xz"
+        "https://cdn.kernel.org/pub/linux/kernel/v3.x/patch-${pkgver}.xz"
         '0001-clk-mmp-Adding-clocks-of-pxa168-peripherals-for-gplu.patch'
         '0002-arch-arm-mmp-initialize-gpio-driver-before-other-dri.patch'
         '0003-arch-arm-mmp-Adding-spi-master-and-mtd-dataflash-for.patch'
@@ -24,20 +24,20 @@ source=("http://www.kernel.org/pub/linux/kernel/v3.x/${_srcname}.tar.xz"
         '0006-mmp-mmc-adding-sdhc-support-for-pxa168-based-gplugd.patch'
         '0007-arch-arm-mmp-Adding-USB-Host-and-OTG-peripheral-for-.patch'
         '0008-arch-arm-mmp-gplugd-Fix-gPlugD-reboot-issue.patch'
-        '0009-packet-fix-race-condition-in-packet_set_ring.patch'
+        '0009-Revert-net-phy-Do-not-perform-software-reset-for-Gen.patch'
         'config')
 md5sums=('9e854df51ca3fef8bfe566dbd7b89241'
-         '46375e6ec7ed50e9497390c1f6bb92b3'
-         'e505809b8ff9f233986ab0797a8932fc'
-         '1c33a3d7c9dcb256e288f1f679c595df'
-         'f56073b69e187d97119cc2b1d947ff13'
-         'bbc148c838fef6bc255ca12ed6c32d3a'
-         '4048860d050595f333c143f5c00caa00'
-         'de8fd3a885883dc75be987dd534cffbf'
-         '2ac5d79b6aef4243aeef43f0e1aaa81e'
-         '01a8473817232b928de05ad05743aabc'
-         'eb616d6ad2bdd44b1136220adadd8330'
-         '402813a242ce345758a31518f9cd8573')
+         'eae22c07df77e95d86303e21a847cef7'
+         'bfd81313763714222a0ba84d51ad12bc'
+         'f2b57a976904e07acc637a963691b588'
+         'a1746d9678717d18eb57ea318f68be6d'
+         'a21ed5340db1142508637bd6f4740b1d'
+         'c306eb2920e2665bc80b48c1bdf5d826'
+         '8a36b07eb503c946fe3ad4b5cf0d5e07'
+         '132bd1fc48bf35847ff6998050673733'
+         '9b04a627cf70d3d69eb02c2544170b06'
+         '7bb7483b63e8f348cb8981f0b04cf3cc'
+         'b2ccde39a0d3942d66a3af5dcbf54ba4')
 
 prepare() {
   cd "${srcdir}/${_srcname}"
@@ -54,7 +54,7 @@ prepare() {
   git apply ../0006-mmp-mmc-adding-sdhc-support-for-pxa168-based-gplugd.patch
   git apply ../0007-arch-arm-mmp-Adding-USB-Host-and-OTG-peripheral-for-.patch
   git apply ../0008-arch-arm-mmp-gplugd-Fix-gPlugD-reboot-issue.patch
-  git apply ../0009-packet-fix-race-condition-in-packet_set_ring.patch
+  git apply ../0009-Revert-net-phy-Do-not-perform-software-reset-for-Gen.patch
 
   cat "${srcdir}/config" > ./.config
 

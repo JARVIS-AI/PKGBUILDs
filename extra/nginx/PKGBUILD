@@ -1,43 +1,48 @@
-# $Id$
 # Maintainer: Bartłomiej Piotrowski <bpiotrowski@archlinux.org>
-# Maintainer: Sébastien Luttringer
+# Contributor: Sébastien Luttringer
 # Contributor: Sergej Pupykin <pupykin.s+arch@gmail.com>
 # Contributor: Miroslaw Szot <mss@czlug.icis.pcz.pl>
 # Contributor: Daniel Micay <danielmicay@gmail.com>
 
 # ALARM: Kevin Mihelich <kevin@archlinuxarm.org>
-#  - build with PIE to fix segfaults
+#  - build armv7h and aarch64 with -fPIC
 
-pkgname=nginx
-pkgver=1.10.2
-pkgrel=2
+pkgbase=nginx
+pkgname=(nginx nginx-src)
+pkgver=1.18.0
+pkgrel=1
 pkgdesc='Lightweight HTTP server and IMAP/POP3 proxy server'
-arch=('i686' 'x86_64')
+arch=(x86_64)
 url='https://nginx.org'
-license=('custom')
-depends=('pcre' 'zlib' 'openssl' 'geoip')
-backup=('etc/nginx/fastcgi.conf'
-        'etc/nginx/fastcgi_params'
-        'etc/nginx/koi-win'
-        'etc/nginx/koi-utf'
-        'etc/nginx/mime.types'
-        'etc/nginx/nginx.conf'
-        'etc/nginx/scgi_params'
-        'etc/nginx/uwsgi_params'
-        'etc/nginx/win-utf'
-        'etc/logrotate.d/nginx')
+license=(custom)
+depends=(pcre zlib openssl geoip mailcap)
+makedepends=(mercurial)
+checkdepends=(perl perl-gd perl-io-socket-ssl perl-fcgi perl-cache-memcached
+              memcached ffmpeg inetutils) 
+backup=(etc/nginx/fastcgi.conf
+        etc/nginx/fastcgi_params
+        etc/nginx/koi-win
+        etc/nginx/koi-utf
+        etc/nginx/nginx.conf
+        etc/nginx/scgi_params
+        etc/nginx/uwsgi_params
+        etc/nginx/win-utf
+        etc/logrotate.d/nginx)
 install=nginx.install
 source=($url/download/nginx-$pkgver.tar.gz{,.asc}
+        hg+http://hg.nginx.org/nginx-tests#revision=c1d167a13c24
         service
         logrotate)
-validpgpkeys=('B0F4253373F8F6F510D42178520A9993A1C052F8') # Maxim Dounin <mdounin@mdounin.ru>
-md5sums=('e8f5f4beed041e63eb97f9f4f55f3085'
+validpgpkeys=(B0F4253373F8F6F510D42178520A9993A1C052F8) # Maxim Dounin <mdounin@mdounin.ru>
+md5sums=('b2d33d24d89b8b1f87ff5d251aa27eb8'
          'SKIP'
-         '5dd4d09914a4403b9df778ec1d66167c'
-         '83ffd315fed235b8fff40a7cfa23a16d')
+         'SKIP'
+         'ba2e3b08ce0f0fff7cced624d0ecf7cc'
+         '6a01fb17af86f03707c8ae60f98a2dc2')
 
 _common_flags=(
-  --with-pcre-jit
+  --with-compat
+  --with-debug
   --with-file-aio
   --with-http_addition_module
   --with-http_auth_request_module
@@ -57,19 +62,26 @@ _common_flags=(
   --with-http_v2_module
   --with-mail
   --with-mail_ssl_module
+  --with-pcre-jit
   --with-stream
+  --with-stream_geoip_module
+  --with-stream_realip_module
   --with-stream_ssl_module
+  --with-stream_ssl_preread_module
   --with-threads
 )
 
 _stable_flags=(
-  --with-ipv6
 )
 
-build() {
-  cd $pkgname-$pkgver
+prepare() {
+  cp -r $pkgbase-$pkgver{,-src}
+}
 
-  CFLAGS+=" -fPIE -pie" && CXXFLAGS+=" -fPIE -pie"
+build() {
+  cd $pkgbase-$pkgver
+
+  [[ $CARCH == "armv7h" || $CARCH == "aarch64" ]] && CFLAGS+=" -fPIC" && CXXFLAGS+=" -fPIC"
 
   ./configure \
     --prefix=/etc/nginx \
@@ -86,14 +98,21 @@ build() {
     --http-fastcgi-temp-path=/var/lib/nginx/fastcgi \
     --http-scgi-temp-path=/var/lib/nginx/scgi \
     --http-uwsgi-temp-path=/var/lib/nginx/uwsgi \
+    --with-cc-opt="$CFLAGS $CPPFLAGS" \
+    --with-ld-opt="$LDFLAGS" \
     ${_common_flags[@]} \
     ${_stable_flags[@]}
 
   make
 }
 
-package() {
-  cd $pkgname-$pkgver
+check() {
+  cd nginx-tests
+  TEST_NGINX_BINARY="$srcdir/$pkgbase-$pkgver/objs/nginx" prove .
+}
+
+package_nginx() {
+  cd $pkgbase-$pkgver
   make DESTDIR="$pkgdir" install
 
   sed -e 's|\<user\s\+\w\+;|user html;|g' \
@@ -102,12 +121,13 @@ package() {
     -i "$pkgdir"/etc/nginx/nginx.conf
 
   rm "$pkgdir"/etc/nginx/*.default
+  rm "$pkgdir"/etc/nginx/mime.types  # in mailcap
 
   install -d "$pkgdir"/var/lib/nginx
   install -dm700 "$pkgdir"/var/lib/nginx/proxy
 
-  chmod 750 "$pkgdir"/var/log/nginx
-  chown http:log "$pkgdir"/var/log/nginx
+  chmod 755 "$pkgdir"/var/log/nginx
+  chown root:root "$pkgdir"/var/log/nginx
 
   install -d "$pkgdir"/usr/share/nginx
   mv "$pkgdir"/etc/nginx/html/ "$pkgdir"/usr/share/nginx
@@ -122,9 +142,14 @@ package() {
   gzip -9c man/nginx.8 > "$pkgdir"/usr/share/man/man8/nginx.8.gz
 
   for i in ftdetect indent syntax; do
-    install -Dm644 contrib/vim/${i}/nginx.vim \
-      "${pkgdir}/usr/share/vim/vimfiles/${i}/nginx.vim"
+    install -Dm644 contrib/vim/$i/nginx.vim \
+      "$pkgdir/usr/share/vim/vimfiles/$i/nginx.vim"
   done
 }
 
-# vim:set ts=2 sw=2 et:
+package_nginx-src() {
+  pkgdesc="Source code of nginx $pkgver, useful for building modules"
+  depends=()
+  install -d "$pkgdir/usr/src"
+  cp -r $pkgbase-$pkgver-src "$pkgdir/usr/src/nginx"
+}

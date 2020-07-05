@@ -1,58 +1,39 @@
-# $Id: PKGBUILD 87983 2013-04-09 20:48:46Z arodseth $
-# Maintainer: Alexander F Rødseth <xyproto@archlinux.org>
+# Maintainer: Alexander F. Rødseth <xyproto@archlinux.org>
 # Contributor: Angel Velasquez <angvp@archlinux.org>
 # Contributor: Douglas Soares de Andrade <douglas@archlinux.org>
 # Contributor: d'Ronin <daronin@2600.com>
 # Contributor: Hexchain Tong <richard0053@gmail.com>
+# Contributor: Jack Lloyd <jack@randombit.net>
 
 # ALARM: Kevin Mihelich <kevin@archlinuxarm.org>
-#  - compiler flags adjustment to build correctly
-#  - --cpu in configure set to correct architectures, autodetect fails
-#  - AArch64 patch
+#  - disable neon on !AArch64
 
 pkgname=botan
-pkgver=1.11.33
+pkgver=2.14.0
 pkgrel=1
 pkgdesc='Crypto library written in C++'
-license=('BSD')
-arch=('x86_64' 'i686')
+arch=(x86_64)
 url='https://botan.randombit.net/'
-depends=('gcc-libs' 'sh')
-makedepends=('python' 'asio' 'git')
-#source=("git://github.com/randombit/botan.git#commit=8e19ecf11c"
-source=("https://botan.randombit.net/releases/Botan-${pkgver}.tgz"{,.asc}
-        '0001-aarch64-support.patch')
-md5sums=('505f0e34acb3e71041b0b6a4e1ca38ac'
-         'SKIP'
-         '37165d2a365dd2e9d779b89fa55ba77b')
-# Botan Distribution Key. To import: gpg --import botan.key
+license=(BSD)
+makedepends=(python)
+optdepends=('python: for using botan2.py')
 validpgpkeys=('621DAF6411E1851C4CF9A2E16211EBF1EFBADFBC')
-
-prepare() {
-  cd "${pkgname^}-$pkgver"
-
-  patch -p1 -i ../0001-aarch64-support.patch
-}
+source=("https://botan.randombit.net/releases/Botan-${pkgver}.tar.xz"{,.asc})
+sha256sums=('0c10f12b424a40ee19bde00292098e201d7498535c062d8d5b586d07861a54b5'
+            'SKIP')
 
 build() {
   cd "${pkgname^}-$pkgver"
 
-  if [[ $CARCH == 'aarch64' ]]; then
-    CPU='aarch64'
-  elif [[ $CARCH == 'armv7h' ]]; then
-    sed -i 's/lang_flags "/lang_flags "-mfpu=vfpv3-d16 -mfloat-abi=hard /' src/build-data/cc/gcc.txt
-    CPU='arm/armv7-a'
-  elif [[ $CARCH == 'armv6h' ]]; then
-    sed -i 's/lang_flags "/lang_flags "-mfpu=vfp -mfloat-abi=hard /' src/build-data/cc/gcc.txt
-    CPU='arm/armv6'
-  elif [[ $CARCH == 'arm' ]]; then
-    CPU='arm/armv5te'
-  fi
+  [[ $CARCH != "aarch64" ]] && CONFIG="--disable-neon"
 
-  python configure.py \
+  ./configure.py \
     --prefix=/usr \
-    --destdir="$pkgdir/usr" \
-    --cpu=$CPU
+    --with-bzip \
+    --with-lzma \
+    --with-zlib \
+    --with-os-feature=getrandom \
+    $CONFIG
 
   make
 }
@@ -60,15 +41,11 @@ build() {
 check() {
   cd "${pkgname^}-$pkgver"
 
-  ./botan-test
+  LD_LIBRARY_PATH="$PWD" ./botan-test
 }
 
 package() {
-  cd "${pkgname^}-$pkgver"
-  make DESTDIR="$pkgdir/usr" install
-  find "$pkgdir/usr/share/doc" -type f -exec chmod 0644 {} \;
-  install -Dm644 doc/license.txt "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+  DESTDIR="$pkgdir" make -C "${pkgname^}-$pkgver" install
+  install -Dm644 "${pkgname^}-$pkgver/license.txt" \
+    "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
 }
-
-# getver: github.com/randombit/botan
-# vim:set ts=2 sw=2 et:

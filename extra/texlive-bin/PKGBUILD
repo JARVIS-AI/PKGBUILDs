@@ -1,4 +1,3 @@
-# $Id$
 # Maintainer: Rémy Oudompheng <remy@archlinux.org>
 # Contributor: francois <francois.archlinux.org>
 
@@ -9,41 +8,36 @@
 #  drop clisp and ffcall makedepends
 
 pkgname=('texlive-bin' 'libsynctex')
-pkgver=2016.41290
-pkgrel=10
+pkgver=2020.54586
+pkgrel=4
 license=('GPL')
-arch=('i686' 'x86_64')
-makedepends=('cairo' 'pixman' 'graphite' 't1lib' 'gd' 'poppler'
+arch=('x86_64')
+makedepends=('git' 'cairo' 'pixman' 'graphite' 't1lib' 'gd' 'poppler'
          'libsigsegv' 'zziplib' 'libpng' 'libjpeg' 'freetype2'
          'icu' 'harfbuzz' 'harfbuzz-icu' 'gmp' 'mpfr' 'potrace' 'libpaper'
          'perl')
-url='http://tug.org/texlive/'
-source=("https://sources.archlinux.org/other/texlive/texlive-bin-source-${pkgver}.tar.xz"
-        "mktexlsr.hook"
-        "mktexlsr.script"
-        "texlive-updmap.hook"
-        "texlive-updmap.script"
-        "texlive-fmtutil.hook"
-        "texlive-fmtutil.script")
-md5sums=('7303361f2d441eb5c962a996fd77e8fa'
-         'a4e54f0cb05f401728b2b230fd63b300'
-         '2bbbef810687f4b2804a4b8cb91ce02f'
-         '0ecdbd88cae12dbeb5d0d63127c5fc38'
-         'c64d77b5111a26b9995263b49df4937c'
-         '582af708588fd09eeaa0f08111e60091'
-         '3f05fa08f84b94fcb3a76be271116a95')
+url='https://tug.org/texlive/'
+_commit=8e5e0e89d413d09cca133c8966d1a3af8a2ac440 # svn://tug.org/texlive/trunk/Build/source@54586
+source=("git+https://github.com/Tex-Live/texlive-source.git#commit=${_commit}")
+sha256sums=('SKIP')
+
+prepare() {
+    cd "$srcdir/texlive-source"
+
+    # t4ht expects to be un /usr/share/texmf/bin/t4ht (FS#27251)
+    sed -i s/SELFAUTOPARENT/TEXMFROOT/ texk/tex4htk/t4ht.c
+
+    # pdftex poppler compatibility
+    cp -pv texk/web2c/pdftexdir/pdftoepdf{-poppler0.86.0,}.cc
+    cp -pv texk/web2c/pdftexdir/pdftosrc{-poppler0.83.0,}.cc
+}
 
 build() {
-   cd "$srcdir"
+   cd "$srcdir/texlive-source"
 
-   # t4ht expects to be un /usr/share/texmf/bin/t4ht (FS#27251)
-   sed -i s/SELFAUTOPARENT/TEXMFROOT/ source/texk/tex4htk/t4ht.c
    #############################################################
    ### configure
-   cd source
-   ## prevent compiling Xdvi with libXp
-   sed -i~ 's|-lXp ||' texk/xdvik/configure
-   test ! -d Work && mkdir Work
+   mkdir -p Work
    cd Work
    echo "--> Initial configuration..."
    # we use temporary prefix to avoid messing the existing
@@ -102,7 +96,7 @@ package_libsynctex() {
     pkgdesc='Library for synchronization between TeX files and resulting file'
     depends=('glibc' 'zlib')
 
-    cd "${srcdir}/source/Work"
+    cd "${srcdir}/texlive-source/Work"
     make -C texk/web2c DESTDIR="${pkgdir}" \
         install-data-am install-libLTLIBRARIES
 }
@@ -118,11 +112,10 @@ package_texlive-bin() {
                'biber: for bibliography processing')
    options=('!strip')
 
-   cd "$srcdir"
+   cd "$srcdir/texlive-source"
 
    #############################################################
    ### install
-   cd source
    # fixes for xindy
    find utils/xindy -name Makefile -exec sed -i -e "s|^prefix =.\+$|prefix = $pkgdir/usr|" -e "s|^mandir =.\+$|mandir = \${prefix}/share/man|" -e "s|^datadir =.\+$|datadir = \${datarootdir}/texmf|" -e "s|^docdir =.\+$|docdir = \${datadir}/doc/xindy|" '{}' \;
 
@@ -134,49 +127,46 @@ package_texlive-bin() {
    rm -rf "${pkgdir}"/usr/{texmf,share/texmf-dist}
 
    ## symlink engines by hand. texlinks has moved to texlive-core...
-   mkdir -p ${pkgdir}/usr/bin
-   ln -s eptex ${pkgdir}/usr/bin/platex
-   ln -s euptex ${pkgdir}/usr/bin/uplatex
-   ln -s luatex ${pkgdir}/usr/bin/dvilualatex
-   ln -s luatex ${pkgdir}/usr/bin/dviluatex
-   ln -s luatex ${pkgdir}/usr/bin/lualatex
-   ln -s pdftex ${pkgdir}/usr/bin/amstex
-   ln -s pdftex ${pkgdir}/usr/bin/cslatex
-   ln -s pdftex ${pkgdir}/usr/bin/csplain
-   ln -s pdftex ${pkgdir}/usr/bin/eplain
-   ln -s pdftex ${pkgdir}/usr/bin/etex
-   ln -s pdftex ${pkgdir}/usr/bin/jadetex
-   ln -s pdftex ${pkgdir}/usr/bin/latex
-   ln -s tex ${pkgdir}/usr/bin/lollipop
-   ln -s pdftex ${pkgdir}/usr/bin/mex
-   ln -s pdftex ${pkgdir}/usr/bin/mllatex
-   ln -s pdftex ${pkgdir}/usr/bin/mltex
-   ln -s pdftex ${pkgdir}/usr/bin/pdfetex
-   ln -s pdftex ${pkgdir}/usr/bin/pdfcslatex
-   ln -s pdftex ${pkgdir}/usr/bin/pdfcsplain
-   ln -s pdftex ${pkgdir}/usr/bin/pdfjadetex
-   ln -s pdftex ${pkgdir}/usr/bin/pdflatex
-   ln -s pdftex ${pkgdir}/usr/bin/pdfmex
-   ln -s pdftex ${pkgdir}/usr/bin/pdfxmltex
-   ln -s pdftex ${pkgdir}/usr/bin/texsis
-   ln -s pdftex ${pkgdir}/usr/bin/utf8mex
-   ln -s pdftex ${pkgdir}/usr/bin/xmltex
-   ln -s xetex ${pkgdir}/usr/bin/xelatex
-
-   ## install pacman hooks
-   install -D -m644 ${srcdir}/mktexlsr.hook "$pkgdir/usr/share/libalpm/hooks/mktexlsr.hook"
-   install -D -m644 ${srcdir}/texlive-updmap.hook "$pkgdir/usr/share/libalpm/hooks/texlive-updmap.hook"
-   install -D -m644 ${srcdir}/texlive-fmtutil.hook "$pkgdir/usr/share/libalpm/hooks/texlive-fmtutil.hook"
-   install -D -m755 ${srcdir}/mktexlsr.script "$pkgdir/usr/share/libalpm/scripts/mktexlsr"
-   install -D -m755 ${srcdir}/texlive-updmap.script "$pkgdir/usr/share/libalpm/scripts/texlive-updmap"
-   install -D -m755 ${srcdir}/texlive-fmtutil.script "$pkgdir/usr/share/libalpm/scripts/texlive-fmtutil"
+   mkdir -p "${pkgdir}"/usr/bin
+   ln -s eptex "${pkgdir}"/usr/bin/platex
+   ln -s euptex "${pkgdir}"/usr/bin/uplatex
+   ln -s luatex "${pkgdir}"/usr/bin/dvilualatex
+   ln -s luatex "${pkgdir}"/usr/bin/dviluatex
+   ln -s luahbtex "${pkgdir}"/usr/bin/lualatex
+   ln -s pdftex "${pkgdir}"/usr/bin/amstex
+   ln -s pdftex "${pkgdir}"/usr/bin/cslatex
+   ln -s pdftex "${pkgdir}"/usr/bin/csplain
+   ln -s pdftex "${pkgdir}"/usr/bin/eplain
+   ln -s pdftex "${pkgdir}"/usr/bin/etex
+   ln -s pdftex "${pkgdir}"/usr/bin/jadetex
+   ln -s pdftex "${pkgdir}"/usr/bin/latex
+   ln -s tex "${pkgdir}"/usr/bin/lollipop
+   ln -s pdftex "${pkgdir}"/usr/bin/mex
+   ln -s pdftex "${pkgdir}"/usr/bin/mllatex
+   ln -s pdftex "${pkgdir}"/usr/bin/mltex
+   ln -s pdftex "${pkgdir}"/usr/bin/pdfetex
+   ln -s pdftex "${pkgdir}"/usr/bin/pdfcslatex
+   ln -s pdftex "${pkgdir}"/usr/bin/pdfcsplain
+   ln -s pdftex "${pkgdir}"/usr/bin/pdfjadetex
+   ln -s pdftex "${pkgdir}"/usr/bin/pdflatex
+   ln -s pdftex "${pkgdir}"/usr/bin/pdfmex
+   ln -s pdftex "${pkgdir}"/usr/bin/pdfxmltex
+   ln -s pdftex "${pkgdir}"/usr/bin/texsis
+   ln -s pdftex "${pkgdir}"/usr/bin/utf8mex
+   ln -s pdftex "${pkgdir}"/usr/bin/xmltex
+   ln -s xetex "${pkgdir}"/usr/bin/xelatex
 
    #############################################################
    # remove dangling symlinks
    _bibtexextra_scripts="
-bibexport
+bbl2bib
+bib2gls
 bibdoiadd
+bibexport
+bibmradd
+biburl2doi
 bibzbladd
+convertgls2bib
 listbib
 ltx2crossrefxml
 multibibliography
@@ -196,12 +186,18 @@ autoinst
 bundledoc
 checkcites
 checklistings
+chklref
 chkweb
 cjk-gs-integrate
+cluttex
+cllualatex
+clxelatex
 context
 contextjit
+ctanbib
 ctanify
 ctanupload
+ctan-o-mat
 de-macro
 depythontex
 deweb
@@ -209,21 +205,36 @@ dosepsbin
 dtxgen
 dvi2fax
 dviasm
+dviinfox
 dvired
 e2pall
 epstopdf
 findhyph
 fmtutil
 fmtutil-sys
+fmtutil-user
 fontinst
 fragmaster
+ht
+htcontext
+htlatex
+htmex
+httex
+httexi
+htxelatex
+htxetex
 installfont-tl
+jfmutil
+ketcindy
 kpsepath
 kpsetool
 kpsewhere
 kpsexpand
 latex-git-log
+latex-papersize
 latex2man
+latex2nemeth
+latexdef
 latexdiff
 latexdiff-vc
 latexfileversion
@@ -234,34 +245,31 @@ latexrevise
 listings-ext.sh
 ltxfileinfo
 ltximg
-lua2dox_filter
 luaotfload-tool
 luatools
+lwarpmk
 make4ht
 match_parens
 mf2pt1
+mk4ht
 mkjobtexmf
 mkt1font
 mktexfmt
+mktexlsr
+mktexmf
+mktexpk
+mktextfm
 mptopdf
 mtxrun
 mtxrunjit
 ot2kpx
-pdf180
-pdf270
-pdf90
+pamphletangler
 pdfatfi
-pdfbook
 pdfbook2
 pdfcrop
-pdfflip
 pdfjam
-pdfjam-pocketmod
-pdfjam-slides3up
-pdfjam-slides6up
-pdfjoin
-pdfnup
-pdfpun
+pdflatexpicscale
+pdftex-quiet
 pdfxup
 pfarrei
 pkfix
@@ -289,19 +297,28 @@ texdoc
 texdoctk
 texexec
 texfot
+texhash
 texlinks
 texliveonfly
 texloganalyser
 texmfstart
+texosquery
+texosquery-jre5
+texosquery-jre8
+texplate
 thumbpdf
+tlcockpit
+tlshell
 typeoutfileinfo
 updmap
 updmap-sys
+updmap-user
 vpl2ovp
 vpl2vpl
+xhlatex
+xindex
 "
    _games_scripts="rubikrotation"
-   _htmlxml_scripts="ht htcontext htlatex htmex httex httexi htxelatex htxetex mk4ht"
    _humanities_scripts="diadia"
    _langcyrillic_scripts="rubibtex rumakeindex"
    _langextra_scripts="ebong"
@@ -310,11 +327,13 @@ vpl2vpl
 kanji-fontmap-creator
 kanji-config-updmap
 kanji-config-updmap-sys
+kanji-config-updmap-user
 "
    _langkorean_scripts="jamo-normalize komkindex ttf2kotexfont"
    _latexextra_scripts="
 authorindex
 exceltex
+l3build
 makedtx
 makeglossaries
 makeglossaries-lite
@@ -324,9 +343,11 @@ ps4pdf
 splitindex
 svn-multi
 vpe
+webquiz
+wordcount
 yplan"
    _music_scripts="lily-glyph-commands lily-image-commands lily-rebuild-pdfs
-m-tx musixtex musixflx pmx2pdf pmxchords"
+m-tx musixtex musixflx pmxchords"
    _pictures_scripts="
 cachepic
 epspdf

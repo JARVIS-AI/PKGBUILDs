@@ -3,11 +3,11 @@
 buildarch=20
 
 pkgname=raspberrypi-firmware
-pkgver=20161211
-pkgrel=2
-_commit=6d45dcf869688163fa1c745cb059b14baf61b8fd
+pkgver=20200614
+pkgrel=1
+_commit=cb2b95d73e9f0b1ebf05e03bb1959603d982feeb
 pkgdesc="Firmware tools, libraries, and headers for Raspberry Pi"
-arch=('any')
+arch=('armv6h' 'armv7h')
 url="https://github.com/raspberrypi/firmware"
 license=('custom')
 replaces=('raspberrypi-firmware-tools')
@@ -15,13 +15,13 @@ provides=('raspberrypi-firmware-tools')
 options=(!strip)
 source=("https://github.com/raspberrypi/firmware/archive/${_commit}.tar.gz"
         '00-raspberrypi-firmware.conf')
-md5sums=('08f7c4f2ba454083c8f988d6c8f54b02'
+md5sums=('d6fe16c3db2f5cfb45bb5ed2ceac7ccc'
          '72e0d5818fc513ece1b964f25f7e7882')
 
 package() {
   mkdir -p "${pkgdir}"/opt/vc
 
-  cp -R "${srcdir}"/firmware-${_commit}/hardfp/opt/vc/{bin,include,lib,sbin,LICENCE} "${pkgdir}"/opt/vc
+  cp -R "${srcdir}"/firmware-${_commit}/hardfp/opt/vc/{bin,include,lib,LICENCE} "${pkgdir}"/opt/vc
 
   # Create lib links
   mkdir -p "${pkgdir}"/etc/ld.so.conf.d/

@@ -1,4 +1,3 @@
-# $Id$
 # Contributor: Low Kian Seong <fastmail_low@speedymail.org>
 # Maintainer: dorphell <dorphell@archlinux.org>
 
@@ -6,18 +5,15 @@
 #  - disable unaligned access on v5 with -DLZO_CFG_NO_UNALIGNED
 
 pkgname=lzo
-pkgver=2.09
-pkgrel=1
+pkgver=2.10
+pkgrel=3
 pkgdesc="Portable lossless data compression library"
-arch=('i686' 'x86_64')
-url="http://www.oberhumer.com/opensource/lzo"
+arch=('x86_64')
+url="https://www.oberhumer.com/opensource/lzo"
 license=('GPL')
 depends=('glibc')
-provides=("lzo2=$pkgver")
-replaces=('lzo2')
-conflicts=('lzo2')
-source=(http://www.oberhumer.com/opensource/lzo/download/lzo-${pkgver}.tar.gz)
-sha1sums=('e2a60aca818836181e7e6f8c4f2c323aca6ac057')
+source=(https://www.oberhumer.com/opensource/lzo/download/lzo-${pkgver}.tar.gz)
+sha1sums=('4924676a9bae5db58ef129dc1cebce3baa3c4b5d')
 
 build() {
   cd lzo-${pkgver}
@@ -28,7 +24,7 @@ build() {
   make
 
   # build minilzo
-  gcc $CFLAGS -fpic -Iinclude/lzo -o minilzo/minilzo.o -c minilzo/minilzo.c
+  gcc $CPPFLAGS $CFLAGS -fpic -Iinclude/lzo -o minilzo/minilzo.o -c minilzo/minilzo.c
   gcc $LDFLAGS -shared -o libminilzo.so.0 -Wl,-soname,libminilzo.so.0 minilzo/minilzo.o
 }
 
